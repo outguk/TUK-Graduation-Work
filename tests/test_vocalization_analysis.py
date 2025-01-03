@@ -1,12 +1,29 @@
+import os
+import sys
 import pytest
+
+# 프로젝트 루트를 sys.path에 추가
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from models.vocalization.vocalization_analysis import extract_audio
 
-def test_analyze_volume():
-    # 테스트용 오디오 파일 경로
-    test_audio_file = r"C:\Users\dlsrn\OneDrive\바탕 화면\종합설계\Sample\Sample\01.원천데이터\1.언어적\2. A01 고등학생\A01_S01_M_F_08_139_02_WA_MO.mp4"  # 샘플 오디오 파일
-    
-    # 함수 호출
-    result = extract_audio(test_audio_file, output_audio_file="audio.wav")
-    
-    # 결과 검증
-    # assert => 간단한 디버깅 도구, 특정 조건이 True인지 확인하고, 조건이 False일 경우 프로그램 실행을 중단
+def test_extract_audio():
+    # 1. 테스트용 동영상 파일 경로
+    video_file = "tests/test_video/test1.mp4"  # 테스트용 동영상
+    output_audio_file = "tests/test_video/test1_audio.wav"  # 출력 오디오 경로
+
+    # 2. 함수 실행
+    result = extract_audio(video_file, output_audio_file)
+
+    # 3. 결과 검증
+    # (1) 반환된 경로가 올바른지 확인
+    assert result == output_audio_file, "Returned file path is incorrect."
+
+    # (2) 출력 파일이 실제로 생성되었는지 확인
+    assert os.path.exists(output_audio_file), "Audio file was not created."
+
+    # (3) 생성된 파일이 비어 있지 않은지 확인
+    assert os.path.getsize(output_audio_file) > 0, "Audio file is empty."
+
+    # 4. 테스트 완료 후 파일 정리
+    os.remove(output_audio_file)
