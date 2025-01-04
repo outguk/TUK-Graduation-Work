@@ -1,7 +1,7 @@
 # 발성 분석 코드
 
 import os
-import moviepy as mp
+import moviepy.editor as mp
 import whisper
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
@@ -17,7 +17,7 @@ def extract_audio(video_file, output_audio_file="audio.wav"):
     
     # MoviePy를 사용하여 동영상 파일을 로드하고 오디오 트랙 추출
     try:
-      video = mp.editor.VideoFileClip(video_file)
+      video = mp.VideoFileClip(video_file)
     except FileNotFoundError:
       print(f"Error: Video file '{video_file}' not found.")
       return None

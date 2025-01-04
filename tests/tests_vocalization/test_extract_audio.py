@@ -26,4 +26,7 @@ def test_extract_audio():
     assert os.path.getsize(output_audio_file) > 0, "Audio file is empty."
 
     # 4. 테스트 완료 후 파일 정리
-    os.remove(output_audio_file)
+    # os.remove(output_audio_file)
+
+
+# 테스트 성공 (wav파일 -> 다른 파일로 하는 것이 좋은 지 유의의)
