@@ -1,5 +1,6 @@
 # 발성 분석 코드
 
+import logging
 import os
 import moviepy.editor as mp
 import whisper
@@ -10,7 +11,7 @@ from cmudict import entries as cmu_dict
 import json
 
 # Step 1: Extract Audio from Video
-# 동영상에서 오디오 추출
+# 동영상에서 오디오 추출 -> 최적화 및 개선 필요
 def extract_audio(video_file, output_audio_file="audio.wav"):
     # 오디오 추출 시작 메시지 출력
     print(f"Extracting audio from video: {video_file}")
@@ -28,20 +29,20 @@ def extract_audio(video_file, output_audio_file="audio.wav"):
     return output_audio_file
 
 # Step 2: Speech-to-Text with Whisper
-# 음성을 텍스트로 변환 (Whisper 사용)
+# 음성을 텍스트로 변환 (Whisper 사용) -> 최적화 및 개선 필요
 def transcribe_audio(audio_file, model_name="base"):
     # 텍스트 변환 시작 메시지 출력
     print(f"Transcribing audio: {audio_file} with model: {model_name}")
     # Whisper 모델 로드
     model = whisper.load_model(model_name)
     # 로드된 모델로 음성 텍스트 변환 수행
-    transcription = model.transcribe(audio_file)
+    transcription = model.transcribe(audio_file) # dict 형태로 반환
     # 변환된 텍스트의 첫 100자를 출력하여 검증
     print(f"Transcription completed. Text: {transcription['text'][:100]}...")
     return transcription
 
 # Step 3: Analyze Speaking Speed (Words per Minute)
-# 말하기 속도 분석 (분당 단어 수 계산)
+# 말하기 속도 분석 (분당 단어 수 계산) -> 최적화 및 개선 필요
 def calculate_speaking_speed(transcription, duration):
     # 말하기 속도 계산 시작 메시지 출력
     print(f"Calculating speaking speed for duration: {duration} seconds")
@@ -56,33 +57,64 @@ def calculate_speaking_speed(transcription, duration):
 
 # Step 4: Volume Analysis
 # 음량 분석
-def analyze_volume(audio_file):
-    # 음량 분석 시작 메시지 출력
-    print(f"Analyzing volume for audio file: {audio_file}")
-    # Pydub을 사용하여 오디오 파일 로드
-    audio = AudioSegment.from_wav(audio_file)
-    # 오디오의 비침묵 구간 감지
-    segments = detect_nonsilent(audio, min_silence_len=500, silence_thresh=audio.dBFS - 16)
-    volume_stats = []
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    # 감지된 각 구간의 음량 수준 분석
-    for start, end in segments:
-        segment = audio[start:end]
-        db_level = segment.dBFS  # 구간의 데시벨 수준 가져오기
-        volume_stats.append(db_level)
+def analyze_volume(audio_file, min_silence_len=500, silence_thresh_offset=16):
+    """
+    오디오 파일의 음량을 분석합니다.
 
-    # 평균, 최대, 최소 음량 계산
-    avg_volume = sum(volume_stats) / len(volume_stats) if volume_stats else None
-    max_volume = max(volume_stats) if volume_stats else None
-    min_volume = min(volume_stats) if volume_stats else None
-    # 계산된 음량 통계 출력
-    print(f"Volume analysis - Average: {avg_volume}, Max: {max_volume}, Min: {min_volume}")
+    매개변수:
+        audio_file (str): 분석할 WAV 형식 오디오 파일 경로.
+        min_silence_len (int): 무음을 감지할 최소 길이(ms 단위).
+        silence_thresh_offset (int): 무음 임계값을 정의하기 위한 audio.dBFS 기준 오프셋.
 
-    return {
-        "average_volume": avg_volume,
-        "max_volume": max_volume,
-        "min_volume": min_volume,
-    }
+    반환값:
+        dict: 평균, 최대, 최소 음량 수준(dBFS)을 포함하는 딕셔너리.
+    """
+    try:
+        logging.info(f"오디오 파일 음량 분석 시작: {audio_file}")
+        audio = AudioSegment.from_wav(audio_file)
+        
+        # 무음 임계값 계산
+        silence_thresh = audio.dBFS - silence_thresh_offset
+        logging.info(f"무음 임계값 설정: {silence_thresh} dBFS")
+
+        # 비침묵 구간 감지
+        segments = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+        
+        if not segments:
+            logging.warning("비침묵 구간이 감지되지 않았습니다. 파일이 완전히 무음일 수 있습니다.")
+            return {
+                "average_volume": None,
+                "max_volume": None,
+                "min_volume": None,
+            }
+
+        # 각 구간의 음량 분석
+        volume_stats = []
+        for start, end in segments:
+            segment = audio[start:end]
+            db_level = segment.dBFS
+            volume_stats.append(db_level)
+
+        avg_volume = sum(volume_stats) / len(volume_stats) if volume_stats else None
+        max_volume = max(volume_stats) if volume_stats else None
+        min_volume = min(volume_stats) if volume_stats else None
+        
+        logging.info(f"음량 분석 결과 - 평균: {avg_volume}, 최대: {max_volume}, 최소: {min_volume}")
+        
+        return {
+            "average_volume": avg_volume,
+            "max_volume": max_volume,
+            "min_volume": min_volume,
+        }
+    except FileNotFoundError:
+        logging.error("오디오 파일을 찾을 수 없습니다. 파일 경로를 확인하세요.")
+        return None
+    except Exception as e:
+        logging.error(f"음량 분석 중 오류 발생: {e}")
+        return None
 
 # Step 5: Pronunciation Analysis
 # 발음 분석
