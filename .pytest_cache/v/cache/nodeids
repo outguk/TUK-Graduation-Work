@@ -1,0 +1,5 @@
+[
+  "tests/test_vocalization_analysis.py::test_extract_audio",
+  "tests/tests_vocalization/test_extract_audio.py::test_extract_audio",
+  "tests/tests_vocalization/test_whisperSTT.py::test_transcribe_audio"
+]

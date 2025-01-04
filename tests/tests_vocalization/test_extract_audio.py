@@ -3,7 +3,8 @@ import sys
 import pytest
 
 # 프로젝트 루트를 sys.path에 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(project_root)
 
 from models.vocalization.vocalization_analysis import extract_audio
 
