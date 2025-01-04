@@ -32,4 +32,4 @@ def test_transcribe_audio():
     print("Transcribed Text:", transcription['text'][:100])
 
     # 4. 테스트 완료 후 파일 정리
-    # os.remove(transcription)s
+    # os.remove(transcription)
