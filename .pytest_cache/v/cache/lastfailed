@@ -1,1 +1,3 @@
-{}
+{
+  "tests/tests_vocalization/test_extract_audio.py::test_extract_audio": true
+}
