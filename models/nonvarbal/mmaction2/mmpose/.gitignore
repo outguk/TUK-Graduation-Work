@@ -1,0 +1,15 @@
+convert/
+
+tmp_raw_data/
+
+results_image/
+
+visualizations/
+
+raw_data/
+
+results/
+
+keypoints/
+
+*.pth
