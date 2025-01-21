@@ -1,3 +1,11 @@
 {
-  "tests/tests_vocalization/test_extract_audio.py::test_extract_audio": true
+  "tests/tests_vocalization/test_extract_audio.py::test_extract_audio": true,
+  "tests/tests_vocalization/test_whisperSTT.py::test_transcribe_audio": true,
+  "tests/tests_vocalization/test_pronunciation.py::test_extract_audio": true,
+  "tests/tests_vocalization/test_analyze_volume.py": true,
+  "tests/tests_vocalization/test_audio_preprocessing.py": true,
+  "tests/tests_vocalization/test_extract_audio.py": true,
+  "tests/tests_vocalization/test_pronunciation.py": true,
+  "tests/tests_vocalization/test_speech_speed.py": true,
+  "tests/tests_vocalization/test_whisperSTT.py": true
 }

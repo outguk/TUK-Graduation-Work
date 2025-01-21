@@ -17,6 +17,7 @@ from models.vocalization.vocalization_analysis import transcribe_audio
 def test_transcribe_audio():
     # 테스트용 동영상 파일 경로 및 출력 텍스트 파일 경로
     video_file = os.path.abspath("tests/test_video/test1_audio.wav")  # 실제 테스트용 파일 필요
+    output_script_file = os.path.abspath("tests/output/test_transcription.txt")  # 저장 경로 설정
 
     # Step 1: 동영상 파일 확인
     assert os.path.exists(video_file), f"Test video file does not exist: {video_file}"
@@ -34,6 +35,15 @@ def test_transcribe_audio():
 
     # (2) Whisper가 반환한 텍스트의 일부를 출력 (검증을 위한 참조)
     # print("Transcribed Text:", transcription['text'][:100])
+
+    # Step 4: 텍스트 파일로 저장
+    # try:
+    #     os.makedirs(os.path.dirname(output_script_file), exist_ok=True)  # 경로가 없으면 생성
+    #     with open(output_script_file, "w", encoding="utf-8") as f:
+    #         f.write(transcription_text)  # 변환된 텍스트 저장
+    #     print(f"Transcription saved to: {output_script_file}")
+    # except Exception as e:
+    #     print(f"Failed to save transcription: {e}")
 
     # Step 4: 경고 무시 (선택 사항)
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")

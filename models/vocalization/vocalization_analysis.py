@@ -24,13 +24,23 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+from models.vocalization.util_functions import process_audio_chunks, change_sampling_rate
+
 
 # Step 1: Extract Audio from Video
 # 동영상에서 오디오 추출 -> 최적화 및 개선 필요
-def extract_audio(video_file, output_audio_file="audio.wav"):
+def extract_audio(video_file, output_audio_file):
+    """
+    mp4 영상에서 wav 오디오를 추출하는 함수
+    
+    매개변수:
+        video_file : 비디오 파일 경로
+        output_audio_file : 추출된 오디오 파일일
+
+    """
+
     # 오디오 추출 시작 메시지 출력
     print(f"Extracting audio from video: {video_file}")
-    
     # MoviePy를 사용하여 동영상 파일을 로드하고 오디오 트랙 추출
     try:
       video = mp.VideoFileClip(video_file)
@@ -53,6 +63,8 @@ def transcribe_audio(audio_file, model_name="base"):
     # 로드된 모델로 음성 텍스트 변환 수행
     transcription = model.transcribe(audio_file) # dict 형태로 반환
 
+    ''' 출력된 대본을 파일 형태로 저장할 필요가 있음 (test 코드처럼) '''
+
     # 변환된 텍스트의 첫 100자를 출력하여 검증
     # print(f"Transcription completed. Text: {transcription['text'][:100]}...")
     logging.info(transcription['text']) 
@@ -62,32 +74,14 @@ def transcribe_audio(audio_file, model_name="base"):
 # 말하기 속도 분석 (분당 단어 수 계산) -> 최적화 및 개선 필요(무음 구간 추출 부분 모듈화화)
 def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000, silence_thresh=-40):
     """
-    음량 분석을 활용해 말하기 속도를 계산하는 함수.
-
-    Args:
-        transcription (dict): Whisper 변환 결과(텍스트 포함).
-        audio_file_path (str): 분석할 오디오 파일 경로.
-        min_silence_len (int): 무음으로 간주할 최소 길이(ms).
-        silence_thresh (int): 무음으로 간주할 데시벨 임계값(dBFS).
+    util의 음성 구간 추정 함수를 활용해 말하기 속도를 계산하는 함수.
 
     Returns:
         dict: 전체 WPM, 발화 구간별 WPM, 총 발화 시간.
     """
 
-    # Step 1: 오디오 파일 로드 및 무음 구간 탐지
-    audio = AudioSegment.from_file(audio_file_path)
-    silent_chunks = silence.detect_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
-    logging.info(f"무음 구간 감지: {len(silent_chunks)}개 구간")
-
-    # 무음 구간을 바탕으로 발화 구간 계산
-    total_duration = len(audio) / 1000  # 총 길이 (초)
-    non_silent_chunks = [(silent_chunks[i-1][1] / 1000, start / 1000) for i, (start, _) in enumerate(silent_chunks[1:], start=1)]
-    if silent_chunks and silent_chunks[0][0] > 0:
-        non_silent_chunks.insert(0, (0, silent_chunks[0][0] / 1000))
-    if silent_chunks and silent_chunks[-1][1] < len(audio):
-        non_silent_chunks.append((silent_chunks[-1][1] / 1000, total_duration))
-
-    logging.info(f"음성 구간 추출 완료: {len(non_silent_chunks)}개 구간")
+    # Step 1: 무음 무간 추정 함수를 통해 발화 구간 불러오기기
+    audio, non_silent_chunks = process_audio_chunks(audio_file_path, min_silence_len, silence_thresh)
 
     # Step 2: 총 발화 시간 계산
     total_spoken_time = sum(end - start for start, end in non_silent_chunks)
@@ -95,7 +89,7 @@ def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000,
     # Step 3: 말하기 속도 계산
     words = transcription['text'].split() # 스크립트의 단어 분리
     num_words = len(words) # 전체 단어 수
-    overall_wpm = (num_words / total_spoken_time) * 60 if total_spoken_time > 0 else 0 # 전체 발화 구간 평균
+    overall_wpm = (num_words / total_spoken_time) * 60 if total_spoken_time > 0 else 0 # 전체 발화 구간 평균 WPM
 
     # Step 4: 발화 구간별 분석
     segment_wpm = []
@@ -104,12 +98,12 @@ def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000,
 
     for start, end in non_silent_chunks: # 각 발화 구간 별
         segment_duration = end - start # 구간별 발화 시간 계산
-        segment_words = int(segment_duration / word_time) if word_time > 0 else 1 # 구간별 평균 단어 수(발화 시간이 짧게 측정되 0이 되는 경우 1로 기본값 설정)
-        wpm = (segment_words / segment_duration) * 60 if segment_duration > 0 else 0 # WPM 계산
+        segment_words = int(segment_duration / word_time) if word_time > 0 else 1 # 구간별 평균 단어 수(발화 시간이 짧게 측정돼 0이 되는 경우 1로 기본값 설정)
+        wpm = round((segment_words / segment_duration) * 60,2) if segment_duration > 0 else 0 # WPM 계산
         # 구간별 결과 저장
         segment_wpm.append({
-            "start": start,
-            "end": end,
+            "start": round(start,2),
+            "end": round(end,2),
             "wpm": wpm,
             "words": " ".join(words[word_index:word_index + segment_words])
         })
@@ -117,8 +111,8 @@ def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000,
 
     # Step 5: 결과 반환
     results= {
-        "overall_wpm": overall_wpm,
-        "total_spoken_time": total_spoken_time,
+        "overall_wpm": round(overall_wpm,2),
+        "total_spoken_time": round(total_spoken_time,2),
         "segment_wpm": segment_wpm
     }
     logging.info(f"분석 결과 -> {results}")
@@ -140,40 +134,23 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
         dict: 시간 구간, RMS 값, 데시벨 값의 리스트.
     """
     try:
-        # 1. 오디오 파일 로드
-        if not os.path.exists(audio_file_path):
-            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {audio_file_path}")
-        
-        audio = AudioSegment.from_file(audio_file_path)
-        logging.info(f"오디오 파일 로드 완료: {audio_file_path}")
-        
-        # 2. 무음 구간 탐지, 무음 구간의 시작과 끝을 밀리초 단위로 리스트에 저장 ex) [(0, 500), (2000, 3000)].
-        silent_chunks = silence.detect_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
-        logging.info(f"무음 구간 감지: {len(silent_chunks)}개 구간")
-        
-        # 음성 구간 계산, 무음 구간을 기준으로 음성 구간(비침묵 구간)을 계산
-        ''' 예를 들어, 무음 구간이 [(0, 500), (2000, 3000)]라면, 음성 구간은 [(500, 2000)]이 됨 '''
-        non_silent_chunks = [(silent_chunks[i-1][1], start) for i, (start, _) in enumerate(silent_chunks[1:], start=1)]
-        if silent_chunks and silent_chunks[0][0] > 0:
-            non_silent_chunks.insert(0, (0, silent_chunks[0][0]))
-        if silent_chunks and silent_chunks[-1][1] < len(audio):
-            non_silent_chunks.append((silent_chunks[-1][1], len(audio)))
+        # Step 1: 무음 무간 추정 함수를 통해 발화 구간 불러오기
+        audio, non_silent_chunks = process_audio_chunks(audio_file_path, min_silence_len, silence_thresh)
 
-        logging.info(f"음성 구간 추출 완료: {len(non_silent_chunks)}개 구간")
-
-        # 3. 구간별 음량 분석
+        # Step 2. 자료 구조 정의
         '''각 음성 구간(non_silent_chunks)에 대해 음량 분석'''
         rms_values = [] # 각 구간의 RMS 값. (dB 변환에 필요)
         db_values = [] # 각 구간의 데시벨 값.
         time_stamps = [] # 각 음성 구간의 시작 및 끝 시간(초 단위).
 
+        # Step 3. 발화 구간 별 음량 분석
         for start, end in non_silent_chunks:
             segment = audio[start:end] # 시작과 끝 밀리초를 사용하여 해당 구간의 오디오 데이터를 추출
             raw_data = np.array(segment.get_array_of_samples()) # 오디오 데이터를 샘플 값(PCM 데이터)로 변환하여 NumPy 배열로 가져옴
             # 빈 구간 처리 (소리가 비어있다면 분석할 필요 x)
             if len(raw_data) == 0:
                 continue 
-            # NaN 및 Infinity 값 처리
+            # NaN 및 Infinity 값 처리 (Why?)
             if np.isnan(raw_data).any() or np.isinf(raw_data).any():
                 logging.warning(f"NaN 또는 Infinity 값 감지: {start}ms - {end}ms 구간을 건너뜁니다.")
                 continue
@@ -183,9 +160,9 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
             
             rms_values.append(rms)
             db_values.append(db)
-            time_stamps.append((start / 1000, end / 1000))
+            time_stamps.append((start, end))
 
-        # 4. 결과 시각화
+        # 4. 결과 시각화 (나중에 조정 필요)
         avg_times = [(start + end) / 2 for start, end in time_stamps]
 
         plt.figure(figsize=(10, 6))
@@ -197,7 +174,7 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
         plt.legend()
         plt.show()
 
-        # 4. 결과 반환(각 구간별 결과가 저장됨)
+        # 5. 결과 반환(각 구간별 결과가 저장됨)
         result = {
             "time_stamps": time_stamps,
             "rms_values": rms_values,
@@ -206,10 +183,8 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
         logging.info(f"분석 완료")
         return result
     
-    except FileNotFoundError as e:
-        print(f"에러: {e}")
     except Exception as e:
-        print(f"예상치 못한 오류가 발생했습니다: {e}")
+        logging.info("예상치 못한 오류가 발생했습니다.")
 
 # Step 5: Pronunciation Analysis
 # 발음 분석
@@ -241,10 +216,16 @@ def analyze_presentation(video_file):
     print(f"Starting analysis for video file: {video_file}")
     # Step 1: 동영상에서 오디오 트랙 추출
     audio_file = extract_audio(video_file)
+    
+    # Step 2: 오디오 데이터 전처리
+    audio_path = os.path.abspath("tests/test_video/test1_audio.wav")
+    pre_audio_path = os.path.abspath("tests/test_video/test1_audio.wav")
+    change_sampling_rate(audio_path, 16000, pre_audio_path)
+
     # Step 2: 추출된 오디오 텍스트 변환
     transcription = transcribe_audio(audio_file)
 
-    # Pydub을 사용하여 오디오 파일 로드 후 길이 측정
+    # Pydub을 사용하여 오디오 파일 로드 후 길이 측정 (테스트 때는 안해봐서 오류 가능성)
     audio = AudioSegment.from_wav(audio_file)
     duration = len(audio) / 1000  # 밀리초를 초로 변환
 
