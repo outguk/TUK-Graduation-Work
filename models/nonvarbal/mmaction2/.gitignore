@@ -8,3 +8,5 @@ data/
 
 # work_dirs 폴더 제외 - 학습된 모델 저장 폴더
 work_dirs/
+
+keypoints/

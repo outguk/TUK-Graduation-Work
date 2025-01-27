@@ -47,7 +47,7 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
 
 
 if __name__ == "__main__":
-    video_path = '../data/videos/test1.mp4'  # 비디오 파일 경로
+    video_path = '../data/videos/demo.mp4' # 비디오 파일 경로
     output_dir = '../data/frames/'          # 프레임 저장 경로
     file_format = 'jpg'                     # 저장 파일 형식 ('jpg' 또는 'png')
 

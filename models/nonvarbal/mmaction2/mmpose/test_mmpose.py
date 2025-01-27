@@ -71,9 +71,8 @@ def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
     input_dir (str): 입력 이미지 디렉토리.
     output_dir (str): JSON 및 .pkl 결과 저장 디렉토리.
     model: MMPose 모델.
-    vis_dir (str): 시각화된 이미지 저장 디렉토리. None일 경우 시각화하지 않음. - 잘 찍혔는지 확인하기 위해 사용함함
+    vis_dir (str): 시각화된 이미지 저장 디렉토리. None일 경우 시각화하지 않음.
     save_pkl (bool): .pkl 파일 저장 여부.
-    
     """
     # 결과 디렉토리 생성
     os.makedirs(output_dir, exist_ok=True)
@@ -84,6 +83,8 @@ def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
 
     # raw_data 디렉토리에서 이미지 파일 목록 가져오기
     image_files = sorted([f for f in os.listdir(input_dir) if f.endswith('.jpg') or f.endswith('.png')])
+
+    all_results = []  # 모든 프레임의 결과를 저장할 리스트
 
     # 각 이미지 처리
     for image_file in image_files:
@@ -106,12 +107,8 @@ def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
         with open(json_file, 'w') as f:
             json.dump({"keypoints": json_keypoints}, f, indent=4)
 
-        # .pkl 파일 저장 
-        if save_pkl:
-            pkl_file = os.path.join(output_dir, image_file.replace('.jpg', '.pkl').replace('.png', '.pkl'))
-            with open(pkl_file, 'wb') as f:
-                pickle.dump(results, f)
-            print(f".pkl saved: {pkl_file}")
+        # 결과를 리스트에 추가
+        all_results.append(results)
 
         # 시각화 및 저장
         if vis_dir:
@@ -120,8 +117,16 @@ def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
 
         print(f"Processed: {image_path} -> JSON: {json_file}")
 
+    # 모든 프레임의 결과를 하나의 .pkl 파일로 저장
+    if save_pkl:
+        pkl_file = os.path.join(output_dir, 'all_results.pkl')
+        with open(pkl_file, 'wb') as f:
+            pickle.dump(all_results, f)
+        print(f"All results saved to .pkl: {pkl_file}")
+
 # 실행
 input_dir = "raw_data"  # 입력 이미지 디렉토리
+
 output_dir = "keypoints"  # JSON 및 .pkl 결과 저장 디렉토리
 vis_dir = "visualizations"  # keypoints 시각화된 이미지 저장 디렉토리
 
