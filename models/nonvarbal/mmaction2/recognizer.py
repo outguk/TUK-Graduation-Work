@@ -28,8 +28,13 @@ for result in data:
             'keypoint_scores': keypoint_scores
         })
 
+for i, pose_result in enumerate(pose_results[:5]):  # 첫 5개 데이터만 확인
+    print(f"Pose Result {i}:")
+    print(pose_result)
+
+
 # 이미지 크기 설정 (예: 256x256)
-img_shape = (256, 256)
+img_shape = (640, 480)
 
 # 클래스 레이블 정보
 class_labels = [

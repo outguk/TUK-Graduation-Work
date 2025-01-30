@@ -7,6 +7,7 @@ from mmengine.config import Config, DictAction
 from mmengine.runner import Runner
 
 from mmaction.registry import RUNNERS
+import pickle
 
 
 def parse_args():
@@ -21,6 +22,9 @@ def parse_args():
         '--dump',
         type=str,
         help='dump predictions to a pickle file for offline evaluation')
+    parser.add_argument(
+        '--out',
+        help='output result file in pickle format')
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -93,6 +97,11 @@ def main():
 
     # load config
     cfg = Config.fromfile(args.config)
+    
+    # CLI에서 전달된 --cfg-options를 merge
+    if args.cfg_options is not None:
+        cfg.merge_from_dict(args.cfg_options)
+        
     cfg = merge_args(cfg, args)
     cfg.launcher = args.launcher
     if args.cfg_options is not None:
@@ -119,7 +128,15 @@ def main():
         runner = RUNNERS.build(cfg)
 
     # start testing
-    runner.test()
+    outputs = runner.test()
+    
+    #save result if --out is provided
+    if args.out:
+        print(f'Saving results to {args.out}')
+        with open(args.out, 'wb') as f:
+            pickle.dump(outputs, f)
+
+    
 
 
 if __name__ == '__main__':

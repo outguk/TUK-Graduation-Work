@@ -64,7 +64,7 @@ def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path
     cv2.imwrite(output_path, image)
     print(f"Result saved to {output_path}")
 
-def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
+def process_images(input_dir, output_dir, model, vis_dir=None):
     """
     디렉토리 내 이미지 처리 및 시각화.
 
@@ -116,13 +116,6 @@ def process_images(input_dir, output_dir, model, vis_dir=None, save_pkl=True):
             visualize_keypoints(image_path, keypoints, keypoint_scores, output_path=vis_path)
 
         print(f"Processed: {image_path} -> JSON: {json_file}")
-
-    # 모든 프레임의 결과를 하나의 .pkl 파일로 저장
-    if save_pkl:
-        pkl_file = os.path.join(output_dir, 'all_results.pkl')
-        with open(pkl_file, 'wb') as f:
-            pickle.dump(all_results, f)
-        print(f"All results saved to .pkl: {pkl_file}")
 
 # 실행
 input_dir = "raw_data"  # 입력 이미지 디렉토리
