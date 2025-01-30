@@ -67,6 +67,13 @@ class PoseDataset(BaseActionDataset):
             identifier = 'filename' if 'filename' in annos[0] else 'frame_dir'
             split = set(split[self.split])
             data_list = [x for x in annos if x[identifier] in split]
+        # if self.split is not None:
+        #     split, annos = data_list['split'], data_list['annotations']
+        #     identifier = 'filename' if 'filename' in annos[0] else 'frame_dir'
+        #     print(f"⚠️ Split 적용 전 데이터 개수: {len(annos)}")  # 디버깅용
+        #     split = set(split.get(self.split, []))  # 🔥 split이 없을 경우 빈 리스트 반환
+        #     data_list = [x for x in annos if identifier in x and x[identifier] in split]
+        #     print(f"✅ Split 적용 후 데이터 개수: {len(data_list)}")  # 디버깅용
 
         # Sometimes we may need to load video from the file
         if 'video' in self.data_prefix:
@@ -99,6 +106,14 @@ class PoseDataset(BaseActionDataset):
             f'{len(self.data_list)} videos remain after valid thresholding')
 
         return self.data_list
+    # def filter_data(self) -> List[Dict]:
+    #     """🔥 데이터 필터링을 제거하여 모든 데이터를 사용하도록 변경!"""
+    #     logger = MMLogger.get_current_instance()
+    #     logger.info(
+    #         f'⚠️ 필터링 없이 {len(self.data_list)}개의 데이터를 사용합니다!')
+    #     return self.data_list
+
+
 
     def get_data_info(self, idx: int) -> Dict:
         """Get annotation by index."""

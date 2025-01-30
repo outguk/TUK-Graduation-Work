@@ -4,42 +4,77 @@ import numpy as np
 import pickle
 from tqdm import tqdm
 
-def json_to_pkl(json_dir, output_pkl_path):
-    """
-    JSON 데이터를 PKL로 변환.
+# JSON 파일을 PKL 파일로 변환
+# frames_per_annotation: 한 annotation 당 프레임 수 10으로 설정
+# json_dir: JSON 파일이 있는 디렉토리
+# output_pkl_path: PKL 파일 저장 경로
 
-    Args:
-        json_dir (str): JSON 파일들이 있는 디렉토리.
-        output_pkl_path (str): 변환된 .pkl 파일 저장 경로.
-    """
-    all_keypoints = []  # [M x T x V x C]
-    all_keypoint_scores = []  # [M x T x V]
+
+def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
+    annotations = []
+    split_xsub_val = []
 
     json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')])
 
-    for json_file in tqdm(json_files, desc="Converting JSON to PKL"):
-        with open(os.path.join(json_dir, json_file), 'r') as f:
-            data = json.load(f)
+    for i in tqdm(range(0, len(json_files), frames_per_annotation), desc="Converting JSON to PKL"):
+        keypoints_list = []
+        scores_list = []
+        frame_dirs = []
+        img_shape = None
+        original_shape = None
 
-        # JSON에서 keypoints와 신뢰도 값 추출
-        keypoints = np.array(data["keypoints"])  # (V, 3)
-        coordinates = keypoints[:, :2]  # (V, 2)
-        scores = keypoints[:, 2]  # (V,)
+        for j in range(frames_per_annotation):
+            if i + j >= len(json_files):
+                break
 
-        # 모델 입력 형식으로 변환
-        all_keypoints.append(coordinates)  # [T x V x C]
-        all_keypoint_scores.append(scores)  # [T x V]
+            json_file = json_files[i + j]
+            with open(os.path.join(json_dir, json_file), 'r') as f:
+                data = json.load(f)
 
-    # M = 1 (한 명의 관절 데이터만 사용), T = 프레임 수
-    all_keypoints = np.expand_dims(np.array(all_keypoints), axis=0)  # [M x T x V x C]
-    all_keypoint_scores = np.expand_dims(np.array(all_keypoint_scores), axis=0)  # [M x T x V]
+            keypoints = np.array(data["keypoints"])
+            coordinates = keypoints[:, :2].astype(int)
+            scores = keypoints[:, 2]
 
-    # PKL 파일로 저장
+            keypoints_list.append(coordinates)
+            scores_list.append(scores)
+            frame_dirs.append(json_file.replace(".json", ""))
+
+            if img_shape is None:
+                img_shape = data.get("img_shape", (1080, 1920))
+            if original_shape is None:
+                original_shape = data.get("original_shape", (1080, 1920))
+
+        if len(keypoints_list) == 0:
+            continue
+
+        # 차원 확장 및 배열로 변환
+        keypoints_array = np.expand_dims(np.array(keypoints_list), axis=0)
+        scores_array = np.expand_dims(np.array(scores_list), axis=0)
+
+        annotation = {
+            "frame_dir": frame_dirs[0],  # 첫 번째 프레임의 이름 사용
+            "total_frames": len(keypoints_list),
+            "keypoint": keypoints_array,
+            "keypoint_score": scores_array,
+            "img_shape": img_shape,
+            "original_shape": original_shape,
+            "label": -1
+        }
+        annotations.append(annotation)
+        split_xsub_val.extend(frame_dirs)
+
+        # if len(annotations) <= 2:  # 처음 2개 annotation만 출력
+        #     print(f"\nannotation {len(annotations)} keypoint shape:", keypoints_array.shape)
+        #     print(f"첫 번째 키포인트:", keypoints_array[0][0][0])
+
+    converted_data = {
+        "split": {"xsub_val": split_xsub_val},
+        "annotations": annotations
+    }
+
     with open(output_pkl_path, 'wb') as f:
-        pickle.dump({"keypoint": all_keypoints, "keypoint_score": all_keypoint_scores}, f)
-    print(f"PKL file saved at {output_pkl_path}")
+        pickle.dump(converted_data, f)
 
-# 실행
-json_dir = "keypoints"  # JSON 파일들이 저장된 디렉토리
-output_pkl_path = "keypoints/results.pkl"  # 저장할 PKL 파일 경로
-json_to_pkl(json_dir, output_pkl_path)
+    print(f"✅ PKL file saved at {output_pkl_path}")
+
+json_to_pkl("keypoints", "keypoints/results.pkl")
