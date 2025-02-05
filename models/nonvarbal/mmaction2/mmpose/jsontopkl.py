@@ -3,18 +3,22 @@ import json
 import numpy as np
 import pickle
 from tqdm import tqdm
+import re
 
 # JSON 파일을 PKL 파일로 변환
 # frames_per_annotation: 한 annotation 당 프레임 수 10으로 설정
 # json_dir: JSON 파일이 있는 디렉토리
 # output_pkl_path: PKL 파일 저장 경로
+def natural_key(text):
+    return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
 
 
 def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
     annotations = []
     split_xsub_val = []
 
-    json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')])
+    #자연수 순서대로 정렬되도록 변경. / 기존 1->10->11 19->2->20->21->... 30..->39->4 ->5 ->6
+    json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')], key=natural_key)
 
     for i in tqdm(range(0, len(json_files), frames_per_annotation), desc="Converting JSON to PKL"):
         keypoints_list = []

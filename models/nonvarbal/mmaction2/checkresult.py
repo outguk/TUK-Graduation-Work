@@ -51,7 +51,7 @@ import pickle
 import numpy as np
 
 # 결과 파일 경로
-result_file = "work_dirs/stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d/test_full_results.pkl"
+result_file = "data/test_full_results.pkl"
 
 # 결과 파일 로드
 with open(result_file, "rb") as f:
@@ -65,8 +65,8 @@ class_labels = [
 ]
 
 # 프레임 수와 FPS 설정
-frames_per_sample = 10
-fps = 30
+block_duration = 2  # 2초 구간 (각 구간에서 10 프레임 추출됨)
+frames_per_annotation = 10    # 각 샘플 당 사용된 프레임 수 (예: 10 프레임)
 
 for idx, res in enumerate(results):
     probs = np.array(res['pred_score'])  # 확률 리스트 (NumPy 배열 변환)
@@ -76,13 +76,14 @@ for idx, res in enumerate(results):
     top3_probs = probs[top3_indices]  # 확률 값 가져오기
     top3_classes = [class_labels[i] for i in top3_indices]  # 클래스명 변환
     
-    # 샘플의 실제 영상 구간 계산
-    start_frame = idx * frames_per_sample
-    end_frame = start_frame + frames_per_sample - 1
-    start_time = start_frame / fps
-    end_time = end_frame / fps
-    
+    # 구간 시간 계산 (각 샘플이 2초 간격에 해당)
+    start_time = idx * block_duration
+    end_time = (idx + 1) * block_duration
+    # 실제 사용된 프레임 번호 계산 (샘플 0이면 0~9 프레임, 샘플 1이면 10~19 프레임)
+    start_frame = idx * frames_per_annotation
+    end_frame = start_frame + frames_per_annotation - 1
+
     # 출력
-    print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s):")
+    print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}):")
     for i in range(3):
         print(f"   {i+1}. {top3_classes[i]} ({top3_probs[i] * 100:.2f}%)")

@@ -5,6 +5,7 @@ import pickle  # 결과 저장을 위해 사용
 import os
 import json
 import cv2
+import re
 
 
 
@@ -17,6 +18,9 @@ config_file = 'td-hm_hrnet-w48_8xb32-210e_coco-256x192.py'
 checkpoint_file = 'hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth'
 model = init_model(config_file, checkpoint_file, device='cuda:0')  
 
+# 자연 정렬 함수: 파일명 내 숫자 부분을 올바르게 분리하여 정렬
+def natural_key(text):
+    return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
 
 
 #keypoint 저장된 데이터를 이용하여 원본 이미지위에 keypoint 시각화
@@ -81,8 +85,11 @@ def process_images(input_dir, output_dir, model, vis_dir=None):
     if vis_dir:
         os.makedirs(vis_dir, exist_ok=True)
 
-    # raw_data 디렉토리에서 이미지 파일 목록 가져오기
-    image_files = sorted([f for f in os.listdir(input_dir) if f.endswith('.jpg') or f.endswith('.png')])
+    # raw_data 디렉토리에서 이미지 파일 목록 가져오기 (자연 정렬 적용)
+    image_files = sorted(
+        [f for f in os.listdir(input_dir) if f.endswith('.jpg') or f.endswith('.png')],
+        key=natural_key
+    )
 
     all_results = []  # 모든 프레임의 결과를 저장할 리스트
 
