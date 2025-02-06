@@ -28,8 +28,8 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     fps = video.get(cv2.CAP_PROP_FPS)
     print(f"영상의 FPS: {fps}")
 
-    # 2초 동안의 총 프레임 수
-    block_duration_frames = int(round(2 * fps))
+    # 2.5초 동안의 총 프레임 수
+    block_duration_frames = int(round(2.0 * fps)) # 2->2.5로 변경 
     
     ## 실제 사용할 데이터는 2초 이상의 영상이기 때문에 예외처리 X
     # if block_duration_frames < 10:
@@ -47,7 +47,7 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
         # 현재 프레임이 속한 2초 블록 내의 인덱스 계산
         current_index_in_block = frame_count % block_duration_frames
 
-        # 샘플링 인덱스에 해당하면 파일 저장 (파일명은 저장된 프레임임 번호 사용)
+        # 샘플링 인덱스에 해당하면 파일 저장 (파일명은 저장된 프레임 번호 사용)
         if current_index_in_block in sample_indices:
             frame_filename = os.path.join(video_output_dir, f"frame_{saved_count}.{file_format}")
             cv2.imwrite(frame_filename, frame)

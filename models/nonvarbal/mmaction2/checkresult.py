@@ -65,8 +65,10 @@ class_labels = [
 ]
 
 # 프레임 수와 FPS 설정
-block_duration = 2  # 2초 구간 (각 구간에서 10 프레임 추출됨)
-frames_per_annotation = 10    # 각 샘플 당 사용된 프레임 수 (예: 10 프레임)
+frames_per_annotation = 10  # 한 샘플당 사용된 프레임 수 (기본: 10 프레임)
+stride = 5                 # 슬라이딩 윈도우 간격 (4프레임씩 겹치게 설정)
+time_per_annotation = 2.0    # 기존 방식: 2초에 10프레임씩 저장되었음
+time_per_frame = time_per_annotation / frames_per_annotation  # 1프레임당 걸리는 시간 (0.25초)
 
 for idx, res in enumerate(results):
     probs = np.array(res['pred_score'])  # 확률 리스트 (NumPy 배열 변환)
@@ -76,12 +78,13 @@ for idx, res in enumerate(results):
     top3_probs = probs[top3_indices]  # 확률 값 가져오기
     top3_classes = [class_labels[i] for i in top3_indices]  # 클래스명 변환
     
-    # 구간 시간 계산 (각 샘플이 2초 간격에 해당)
-    start_time = idx * block_duration
-    end_time = (idx + 1) * block_duration
-    # 실제 사용된 프레임 번호 계산 (샘플 0이면 0~9 프레임, 샘플 1이면 10~19 프레임)
-    start_frame = idx * frames_per_annotation
-    end_frame = start_frame + frames_per_annotation - 1
+    # 슬라이딩 윈도우 적용 시 실제 프레임 번호 계산
+    start_frame = idx * stride  # 슬라이딩 윈도우 적용
+    end_frame = start_frame + frames_per_annotation - 1  # 샘플이 포함하는 마지막 프레임
+
+    # 실제 시간 계산 (프레임 번호를 기반으로 계산)
+    start_time = start_frame * time_per_frame
+    end_time = end_frame * time_per_frame
 
     # 출력
     print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}):")

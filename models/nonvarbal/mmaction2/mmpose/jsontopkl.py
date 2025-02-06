@@ -6,21 +6,23 @@ from tqdm import tqdm
 import re
 
 # JSON 파일을 PKL 파일로 변환
-# frames_per_annotation: 한 annotation 당 프레임 수 10으로 설정
+# Sliding window 적용 - stride 간격 5로 설정 // 추가 
+# frames_per_annotation: 한 annotation 당 프레임 수 10으로 설정 // 기존 코드 
 # json_dir: JSON 파일이 있는 디렉토리
 # output_pkl_path: PKL 파일 저장 경로
 def natural_key(text):
     return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
 
-
-def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
+# JSON 파일을 PKL 파일로 변환 (슬라이딩 윈도우 적용)
+def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, stride=5):
     annotations = []
     split_xsub_val = []
 
-    #자연수 순서대로 정렬되도록 변경. / 기존 1->10->11 19->2->20->21->... 30..->39->4 ->5 ->6
+    # 파일을 자연 정렬하여 올바른 순서대로 처리
     json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')], key=natural_key)
 
-    for i in tqdm(range(0, len(json_files), frames_per_annotation), desc="Converting JSON to PKL"):
+    # 슬라이딩 윈도우 적용 (stride 간격으로 이동)
+    for i in tqdm(range(0, len(json_files) - frames_per_annotation + 1, stride), desc="Converting JSON to PKL"):
         keypoints_list = []
         scores_list = []
         frame_dirs = []
@@ -28,9 +30,6 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
         original_shape = None
 
         for j in range(frames_per_annotation):
-            if i + j >= len(json_files):
-                break
-
             json_file = json_files[i + j]
             with open(os.path.join(json_dir, json_file), 'r') as f:
                 data = json.load(f)
@@ -48,10 +47,11 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
             if original_shape is None:
                 original_shape = data.get("original_shape", (1080, 1920))
 
+        # 빈 리스트 방지
         if len(keypoints_list) == 0:
             continue
 
-        # 차원 확장 및 배열로 변환
+        # 차원 확장 및 배열 변환
         keypoints_array = np.expand_dims(np.array(keypoints_list), axis=0)
         scores_array = np.expand_dims(np.array(scores_list), axis=0)
 
@@ -67,10 +67,7 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
         annotations.append(annotation)
         split_xsub_val.extend(frame_dirs)
 
-        # if len(annotations) <= 2:  # 처음 2개 annotation만 출력
-        #     print(f"\nannotation {len(annotations)} keypoint shape:", keypoints_array.shape)
-        #     print(f"첫 번째 키포인트:", keypoints_array[0][0][0])
-
+    # 최종 변환 데이터 저장
     converted_data = {
         "split": {"xsub_val": split_xsub_val},
         "annotations": annotations
@@ -81,4 +78,7 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10):
 
     print(f"✅ PKL file saved at {output_pkl_path}")
 
-json_to_pkl("keypoints", "keypoints/results.pkl")
+# 실행 (슬라이딩 윈도우 적용)
+json_to_pkl("keypoints", "keypoints/results.pkl", frames_per_annotation=10, stride=5)
+# 2초당 10프레임 -> stride = 5로 설정하여 1초 겹치도록
+# 2.5초당 10프레임 -> stride = 4로 설정하여 1초 겹치도록
