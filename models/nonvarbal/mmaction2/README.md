@@ -1,233 +1,27 @@
-# MMAction2 base ST-GCN++ train code
-## Install
-```bash
+MMaction2의 STGCN++ 모델을 이용하여 비언어적 행동 분석
 
-conda create --name openmmlab python=3.8 -y
-conda activate openmmlab
-conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11.1 -c pytorch -c conda-forge -y
-pip install -U openmim
-mim install mmengine
-mim install mmcv
-mim install mmdet  # optional
-mim install mmpose  # optional
-pip install -v -e .
+1.  AIHub의 공적말하기 비언어적 표현 데이터를 이용하여 모델 학습
 
-```
+# 총 12개의 클래스를 학습시킨 체크포인트 사용 (best_acc_top1_epoch_27.pth)
 
-## Download test dataset
-https://drive.google.com/drive/folders/1pmvJBNRwOb-U5_ZpP31IX4Ld2WbF-jC2?usp=sharing
+# acc/top1 : 0.8576 | acc/top5 : 0.9874 | acc/mean1 : 0.8576
 
-## How used train
-`CUDA_VISIBLE_DEVICES` is the GPU setting, and the number is the number of GPUs to use.
-```bash
-make train
-```
-or
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2 bash tools/dist_train.sh configs/skeleton/stgcnpp/stgcnpp_8xb16-joint-u100-80e_ntu60-xsub-keypoint-2d.py 3
-```
+2.  OpenCV를 이용하여 프레임 분할
 
-## Converter
-Convert for integrated json to coco skeleton json file
-| ARGS                    | Description                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `--output-dir`          | The path to output pkl file.                                           |
-| `--text`                | For use in place of unresolved PKL files when you want to verify data.      |
+# 2초당 10프레임 추출
 
-```bash
-python convert --output-dir {PATH} --text
-```
-You need to move the files from converter output pkl file to `mmaction2/data` path.
+# 파일 저장형식 : jpg
 
-## Train
-### common setting
-epoch : 50
+3.  MMPose (Hrnet, RTM)을 이용하여 키포인트 추출
 
-### data augmentation
-- data name : test2.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.038, momentum=0.9
-- keypoint_score 범위 0.7 ~ 0.9999 로 늘리기
-- 데이터량 25배 증가
-- x 좌표는 3의 배수로 증가, y 좌표는 2의 배수로 증가
-- result
-```bash
-10/30 05:44:58 - mmengine - INFO - Epoch(val) [4][6/6]    acc/top1: 0.2061  acc/top5: 0.6576  acc/mean1: 0.1250  data_time: 0.0079  time: 0.0295
-```
-### data random augmentation
-- data name : test3.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 데이터량 25배 증가
-- -300 ~ 300 사이의 랜덤값을 x, y 좌표에 더해서 데이터 증강
-- 50 이하의 좌표는 제외 (실수로 인하여 마이너스 값을 포함하여 제외)
-- result
-```bash
-10/30 22:23:59 - mmengine - INFO - Epoch(val) [50][7/7]    acc/top1: 0.2202  acc/top5: 0.6548  acc/mean1: 0.1250  data_time: 0.0132  time: 0.0369
-```
+# 10프레임을 하나의 입력 데이터로 묶어 사용
 
-### Edit ignore area
-- data name : test4.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 데이터량 25배 증가
-- 50 이하의 좌표는 제외
-- result
-```bash
-mmengine - INFO - Epoch(val) [7][8/8]    acc/top1: 1.0000  acc/top5: 1.0000  acc/mean1: 1.0000  data_time: 0.0099  time: 0.0323
-```
+# sample당 top1~3까지의 확률을 결과로 확인
 
-### pre-training with test3_epoch_6.pkl
-- data name : test5.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : test3_epoch_6.pth
-- type='SGD', lr=0.05, momentum=0.9
-- test3의 학습중 epoch 6 의 checkpoint 로 pre-training (acc : 0.9770)
-- data는 증강 하지 않은 원본 데이터
-```bash
-10/31 04:06:12 - mmengine - INFO - Epoch(val) [18][8/8]    acc/top1: 0.1060  acc/top5: 0.6447  acc/mean1: 0.1007  data_time: 0.0130  time: 0.0365
-```
+================================================================================
 
-### Data augmentation with rotate coordination
-- data name : test6.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 데이터량 3배 증가
-- 약 10도 회전한 좌표 (에러로 인하여 이미지 작아짐)
-- result
-```bash
-10/31 04:44:20 - mmengine - INFO - Epoch(val) [3][8/8]    acc/top1: 1.0000  acc/top5: 1.0000  acc/mean1: 1.0000  data_time: 0.0103  time: 0.0327
-```
+# ~0212 : sample의 top1 확률이 85% 미만일 경우 정상행동으로 분류 (result_correct.py)
 
-### Data augmentation with random range rotate coordination
-- data name : test6.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 데이터량 3배 증가
-- 원점 기준 5 ~ 15도 랜덤하게 회전한 좌표 (에러로 인하여 이미지 작아짐)
-- result
-```bash
-10/31 04:53:29 - mmengine - INFO - Epoch(val) [2][8/8]    acc/top1: 1.0000  acc/top5: 1.0000  acc/mean1: 1.0000  data_time: 0.0129  time: 0.0350
-```
+# 0212~ : 실제 영상 데이터 키포인트의 신뢰도가 0.5보다 낮을 경우 해당 프레임 패스 (예정)
 
-### Data augmentation with edit error in rotate
-- data name : test7.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 데이터량 3배 증가
-- 이미지 중심으로 20 ~ 160도 랜덤하게 회전한 좌표
-- result
-```bash
-10/31 06:10:38 - mmengine - INFO - Epoch(val) [3][8/8]    acc/top1: 0.2282  acc/top5: 0.6592  acc/mean1: 0.1250  data_time: 0.0156  time: 0.0391
-```
-
-### Data augmentation with add frame
-- data name : test8.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.1, momentum=0.9
-- 프레임 수 늘리기 위하여 프레임 사이 좌표 추가
-- result
-```bash
-11/01 03:09:32 - mmengine - INFO - Epoch(val) [50][8/8]    acc/top1: 0.1783  acc/top5: 0.6017  acc/mean1: 0.1250  data_time: 0.0096  time: 0.0325
-```
-
-### Data augmentation with add frame and rotate
-- data name : test9.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.1, momentum=0.9
-- 프레임 수 증가와 회전하여 데이터 증가
-- result
-```bash
-11/01 05:08:11 - mmengine - INFO - Epoch(val) [11][8/8]    acc/top1: 0.1667  acc/top5: 0.6351  acc/mean1: 0.1250  data_time: 0.0113  time: 0.0432
-```
-
-### New dataset with 60 frmae
-- data name : test10.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.05, momentum=0.9
-- 새로운 데이터셋 사용과 프레임수 최대 60
-- result
-```bash
-11/01 06:50:11 - mmengine - INFO - Epoch(val) [12][51/51]    acc/top1: 0.1358  acc/top5: 0.6330  acc/mean1: 0.1413  data_time: 0.0096  time: 0.0379
-```
-
-### New dataset with 60 frmae and augmentation 5 times
-- data name : test11.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.1, momentum=0.9
-- 새로운 데이터셋 사용과 프레임수 최대 60, 데이터 증강 5배
-- result
-```bash
-11/01 07:29:41 - mmengine - INFO - Epoch(val) [2][51/51]    acc/top1: 0.1263  acc/top5: 0.6297  acc/mean1: 0.1250  data_time: 0.0094  time: 0.0358
-```
-
-### New dataset with 60 frame and edit config
-- data name : test12.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : stgcnpp_joint_motion.pth
-- type='SGD', lr=0.01, momentum=0.7
-- 11번 실험에서 lr 변경
-- result
-```bash
-11/01 07:29:41 - mmengine - INFO - Epoch(val) [2][51/51]    acc/top1: 0.1263  acc/top5: 0.6297  acc/mean1: 0.1250  data_time: 0.0094  time: 0.0358
-```
-### New dataset with edit dataset Configuration
-- data name : test13.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : None
-- type='SGD', lr=0.08, momentum=0.7
-- convert 실수로 인하여 validation 데이터가 더 많이 구성되었던 점 수정
-- Train data : {'01': 4818, '03': 4806, '04': 4812, '07': 4830, '08': 4842, '09': 4842, '10': 4824, '12': 4818}
-- Validation data : {'07': 1200, '08': 1188, '09': 1188, '10': 1206, '12': 1212, '01': 1212, '03': 1224, '04': 1218}
-- result
-```bash
-11/01 07:29:41 - mmengine - INFO - Epoch(val) [2][51/51]    acc/top1: 0.1263  acc/top5: 0.6297  acc/mean1: 0.1250  data_time: 0.0094  time: 0.0358
-```
-
-### Edit configuration
-- data name : test14.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : None
-- type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005, nesterov=True
-- model{num_classes=10}
-- optimizer 수정 및 base option 필요하던것 삭제
-- 몇가지 class 제외 후 class number 재정렬
-- result
-```bash
-2023/11/09 17:56:21 - mmengine - INFO - Epoch(val) [50][229/229]    acc/top1: 0.8397  acc/top5: 0.9859  acc/mean1: 0.8374  data_time: 0.0202  time: 0.0548
-```
-
-### Real data, not augment
-- data name : test16.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : None
-- type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005, nesterov=True
-- model{num_classes=20}
-- 데이터셋 16451개, 행동패턴 당 54 프레임
-- result
-```bash
-11/09 07:04:59 - mmengine - INFO - Epoch(val) [43][69/69]    acc/top1: 0.8177  acc/top5: 0.9848  acc/mean1: 0.8165  data_time: 0.0139  time: 0.0522
-```
-
-### Real data, 10 times augment
-- data name : test17.pkl
-- config name : stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py
-- checkpoint : None
-- type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005, nesterov=True
-- batch size = 32
-- model{num_classes=20}
-- 데이터셋 16451개, 10배 augmentation 행동패턴 당 54 프레임
-- result
-```bash
-11/09 17:56:21 - mmengine - INFO - Epoch(val) [50][229/229]    acc/top1: 0.8397  acc/top5: 0.9859  acc/mean1: 0.8374  data_time: 0.0202  time: 0.0548
-`
+# 학습시킨 각 클래스의 10프레임의 키포인트 평균 움직임 변화량을 계산, 실제 영상의 10프레임 당 평균 움직임 변화량의 값과 비교 후 임계값보다 작다면 모델에 입력하지 않고 정상행동으로 분류(예정)
