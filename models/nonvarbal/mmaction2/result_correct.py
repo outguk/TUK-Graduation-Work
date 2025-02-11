@@ -38,7 +38,7 @@ for idx, res in enumerate(results):
     start_time = start_frame * time_per_frame
     end_time = end_frame * time_per_frame
     
-    # 80% 미만이면 정상 행동으로 처리
+    # 85% 미만이면 정상 행동으로 처리
     if top1_prob < threshold:
         top1_class = "정상 행동"
     

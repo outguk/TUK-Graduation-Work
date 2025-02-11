@@ -8,6 +8,9 @@ import cv2
 import re
 
 
+# Hrnet 모델 사용
+# 연산량이 많고 메모리 사용량량 높음
+# 정확도는 높음
 
 
 #mmpose 모듈 등록
