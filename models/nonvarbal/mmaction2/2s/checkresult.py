@@ -24,10 +24,11 @@ time_per_frame = block_duration / frames_per_annotation  # 1프레임당 걸리�
 for idx, res in enumerate(results):
     probs = np.array(res['pred_score'])  # 확률 리스트 (NumPy 배열 변환)
     
-    # 확률이 가장 높은 클래스 찾기
-    top1_index = np.argmax(probs)  # 가장 높은 확률을 가진 클래스 인덱스
-    top1_prob = probs[top1_index]  # Top-1 확률
-    top1_class = class_labels[top1_index]  # 해당 클래스명
+    # 확률이 가장 높은 클래스와 두 번째로 높은 클래스 찾기
+    top_indices = np.argsort(probs)[-2:][::-1]  # 확률이 높은 순으로 정렬 (내림차순)
+    top1_index, top2_index = top_indices
+    top1_prob, top2_prob = probs[top1_index], probs[top2_index]
+    top1_class, top2_class = class_labels[top1_index], class_labels[top2_index]
     
     # 실제 프레임 번호 계산
     start_frame = idx * frames_per_annotation
@@ -41,10 +42,14 @@ for idx, res in enumerate(results):
     if top1_prob < threshold:
         original_class = top1_class
         top1_class = f"정상 행동 (원래: {original_class})"
-    
-    # 출력
-    print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}):")
-    print(f"   1. {top1_class} ({top1_prob * 100:.2f}%)")
+        # 출력
+        print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}):")
+        print(f"   1. {top1_class} ({top1_prob * 100:.2f}%)")
+        print(f"   2. {top2_class} ({top2_prob * 100:.2f}%)")
+    else:
+        # 출력
+        print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}):")
+        print(f"   1. {top1_class} ({top1_prob * 100:.2f}%)")
 
 # ##행동 + 예측 확률 확인 
 # import pickle

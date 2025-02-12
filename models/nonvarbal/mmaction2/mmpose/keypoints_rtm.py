@@ -62,7 +62,7 @@ def recover_keypoints(keypoints, scale):
     return keypoints
 
 # 키포인트 시각화 함수 (입력 이미지 위에 키포인트 표시)
-def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path='output.jpg', kpt_score_thr=0.1):
+def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path='output.jpg', kpt_score_thr=0.5):
     image = cv2.imread(image_path)
 
     # 키포인트 데이터가 (x, y)만 있는 경우, score=1.0 추가
