@@ -27,7 +27,7 @@ def natural_key(text):
 
 
 #keypoint 저장된 데이터를 이용하여 원본 이미지위에 keypoint 시각화
-def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path='output.jpg', kpt_score_thr=0.5):
+def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path='output.jpg', kpt_score_thr=0.1):
     
     """
     관절 데이터 이미지 시각화
