@@ -1,4 +1,4 @@
-# nonverbal data/videos에 test.mp4 저장
+# nonverbal/data/videos에 test.mp4 저장
 
 # nonverbal 폴더에서 main.py 실행
 
