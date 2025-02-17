@@ -28,7 +28,7 @@ subprocess.run(["python", os.path.join(MMACTION2_DIR, "mmpose", "crop_image_keyp
 
 # JSON을 PKL로 변환
 print("\n🚀 Step 3: jsontopkl.py 실행")
-subprocess.run(["python", os.path.join(MMACTION2_DIR, "mmpose", "2s_jsontopkl.py")], check=True)
+subprocess.run(["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py")], check=True)
 
 # MMACTION2 폴더 내에서 명령어 실행 (테스트 수행)
 print("\n🚀 Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)")
