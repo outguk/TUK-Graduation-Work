@@ -1,5 +1,6 @@
 import cv2
 import os
+import sys
 
 def video_to_frames(video_path, output_dir, file_format='jpg'):
     """
@@ -13,9 +14,18 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     Returns:
         int: 저장된 프레임의 총 개수.
     """
+
+    if len(sys.argv) > 1:
+        video_path = sys.argv[1]
+    else:
+        raise ValueError("❌ ERROR: 비디오 파일 경로가 제공되지 않았습니다.")
+    video_path = os.path.abspath(video_path)
+
+    # ✅ 비디오 파일 확인 로그 추가
+    print(f"\n📂 [DEBUG] 비디오 파일 경로 확인: {video_path}")
+
     # 비디오 파일명에서 확장자 제거하여 폴더 이름 생성
-    video_name = os.path.splitext(os.path.basename(video_path))[0]
-    video_output_dir = os.path.join(output_dir, video_name)
+    video_output_dir = os.path.abspath(output_dir)
     
     # 저장 디렉토리 생성
     os.makedirs(video_output_dir, exist_ok=True)
@@ -23,12 +33,13 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     video = cv2.VideoCapture(video_path)  # 비디오 파일 열기
     if not video.isOpened():
         raise ValueError(f"비디오 파일을 열 수 없습니다: {video_path}")
+    print("\n✅ 비디오 파일이 정상적으로 열렸습니다!")
 
     # 비디오의 FPS(초당 프레임 수) 확인
     fps = video.get(cv2.CAP_PROP_FPS)
     print(f"영상의 FPS: {fps}")
 
-    # 2.5초 동안의 총 프레임 수
+    # 2초 동안의 총 프레임 수
     block_duration_frames = int(round(2.0 * fps)) # 2->2.5로 변경 
     
     ## 실제 사용할 데이터는 2초 이상의 영상이기 때문에 예외처리 X
@@ -60,10 +71,10 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     print(f"총 {saved_count}개의 프레임이 {video_output_dir}에 저장되었습니다.")
     return saved_count
 
-
+# 경로 수정 (통합실행)
 if __name__ == "__main__":
-    video_path = '../data/videos/test.mp4'  # 비디오 파일 경로
-    output_dir = '../data/frames/'           # 프레임 저장 경로
+    video_path = 'data/videos/test.mp4'  # 비디오 파일 경로
+    output_dir = 'data/frames'           # 프레임 저장 경로
     file_format = 'jpg'                      # 저장 파일 형식 ('jpg' 또는 'png')
 
     saved_frames = video_to_frames(video_path, output_dir, file_format)

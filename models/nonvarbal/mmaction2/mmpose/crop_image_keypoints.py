@@ -9,9 +9,13 @@ from mmpose.utils import register_all_modules
 register_all_modules()
 
 # 모델 불러오기 (HRNet)
-config_file = 'td-hm_hrnet-w48_8xb32-210e_coco-256x192.py'
-checkpoint_file = 'hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth'
-model = init_model(config_file, checkpoint_file, device='cuda:0')  
+# 현재 스크립트(crop_image_keypoints.py)의 절대 경로
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 모델 설정 파일 & 체크포인트 파일 절대 경로 설정
+CONFIG_PATH = os.path.join(SCRIPT_DIR, "td-hm_hrnet-w48_8xb32-210e_coco-256x192.py")
+CHECKPOINT_PATH = os.path.join(SCRIPT_DIR, "hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth")
+model = init_model(CONFIG_PATH, CHECKPOINT_PATH, device='cuda:0')
 
 def natural_key(text):
     return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
@@ -116,8 +120,8 @@ def process_images_central_crop(input_dir, output_dir, model, vis_dir=None):
         
         print(f"Processed (central crop): {image_path} -> JSON: {json_file}")
 
-# 실행 예시 (중앙 영역 crop 방식)
-input_dir = "raw_data"          # 입력 이미지 디렉토리
-output_dir = "keypoints"        # JSON 결과 저장 디렉토리
-vis_dir = "visualizations"      # 시각화 이미지 저장 디렉토리
+# 실행 예시 (중앙 영역 crop 방식) 경로 변경
+input_dir = "data/frames"          # 입력 이미지 디렉토리
+output_dir = "data/keypoints"        # JSON 결과 저장 디렉토리
+vis_dir = "data/visualizations"      # 시각화 이미지 저장 디렉토리
 process_images_central_crop(input_dir, output_dir, model, vis_dir=vis_dir)

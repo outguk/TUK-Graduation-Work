@@ -26,7 +26,8 @@ def natural_key(text):
     return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
 
 
-#keypoint 저장된 데이터를 이용하여 원본 이미지위에 keypoint 시각화
+#keypoint 저장된 데이터를 이용하여 원본 이미지위에 keypoint 시각화 
+#crop된 이미지 비교를 위해 신뢰도 0.1로 수정함  
 def visualize_keypoints(image_path, keypoints, keypoint_scores=None, output_path='output.jpg', kpt_score_thr=0.1):
     
     """

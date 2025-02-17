@@ -73,7 +73,7 @@ test_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False),
     dataset=dict(
         type=dataset_type,
-        ann_file='mmpose/keypoints/results.pkl', # 여기 변경 
+        ann_file='../data/keypoints/results.pkl', # 여기 변경 
         pipeline=test_pipeline,
         split='xsub_val',
         test_mode=True))
