@@ -26,6 +26,7 @@ class_labels = [
 # ✅ 프레임 수 설정
 frames_per_annotation = 10  # 각 샘플 당 사용된 프레임 수 (10 프레임)
 fps = 5  # 초당 5프레임 (2초당 10프레임)
+threshold = 0.85  # 정상 행동 필터링 기준 확률 (85%)
 
 # ✅ 결과 출력 (정상 행동 제외)
 previous_frame = None  # 이전 프레임 번호 저장 변수
@@ -38,6 +39,12 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
     top3_probs = probs[top3_indices]  # 확률 값 가져오기
     top3_classes = [class_labels[i] for i in top3_indices]  # 클래스명 변환
     
+    top1_index = np.argmax(probs)  # 가장 높은 확률을 가진 클래스 인덱스
+    top1_prob = probs[top1_index]  # Top-1 확률
+    top1_class = class_labels[top1_index] 
+    if top1_prob < threshold:
+        top1_class = "정상 행동"
+
     # 🔹 현재 프레임 번호 가져오기 (frame_dir에서 숫자 부분 추출)
     current_frame = int(frame_dir.split('_')[-1])  # 예: frame_40 → 40
     
@@ -56,8 +63,11 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
 
     # ✅ 출력
     print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}, frame_dir: {frame_dir}):")
+    if top1_prob < threshold:
+        print("   정상 행동")
     for i in range(3):
         print(f"   {i+1}. {top3_classes[i]} ({top3_probs[i] * 100:.2f}%)")
-    
+    # print(f"   Top-1 클래스: {top1_class} ({top1_prob * 100:.2f}%)")
+
     # 🔹 현재 프레임을 previous_frame으로 업데이트
     previous_frame = current_frame

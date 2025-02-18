@@ -29,7 +29,7 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
     # 🔹 JSON 파일 정렬하여 가져오기
     json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')], key=natural_key)
 
-    for i in tqdm(range(0, len(json_files), frames_per_annotation), desc="Converting JSON to PKL"):
+    for i in range(0, len(json_files), frames_per_annotation):
         keypoints_list = []
         scores_list = []
         frame_dirs = []

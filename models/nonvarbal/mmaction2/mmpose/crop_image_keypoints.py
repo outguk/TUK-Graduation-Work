@@ -4,6 +4,7 @@ import re
 import json
 from mmpose.apis import inference_topdown, init_model
 from mmpose.utils import register_all_modules
+from tqdm import tqdm
 
 # mmpose 모듈 등록
 register_all_modules()
@@ -71,7 +72,7 @@ def visualize_keypoints_from_image(image, keypoints, keypoint_scores=None, outpu
             cv2.line(img_vis, pt1, pt2, (255, 0, 0), 2)
     
     cv2.imwrite(output_path, img_vis)
-    print(f"Result saved to {output_path}")
+    # print(f"Result saved to {output_path}")
 
 def process_images_central_crop(input_dir, output_dir, model, vis_dir=None):
     """
@@ -86,7 +87,7 @@ def process_images_central_crop(input_dir, output_dir, model, vis_dir=None):
         key=natural_key
     )
     
-    for image_file in image_files:
+    for image_file in tqdm(image_files, desc="Processing images"):
         image_path = os.path.join(input_dir, image_file)
         img = cv2.imread(image_path)
         if img is None:
@@ -118,7 +119,7 @@ def process_images_central_crop(input_dir, output_dir, model, vis_dir=None):
             vis_path = os.path.join(vis_dir, image_file)
             visualize_keypoints_from_image(cropped_img, keypoints, keypoint_scores, output_path=vis_path)
         
-        print(f"Processed (central crop): {image_path} -> JSON: {json_file}")
+        # print(f"Processed (central crop): {image_path} -> JSON: {json_file}")
 
 # 실행 예시 (중앙 영역 crop 방식) 경로 변경
 input_dir = "data/frames"          # 입력 이미지 디렉토리
