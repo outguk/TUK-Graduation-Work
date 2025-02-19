@@ -10,10 +10,10 @@ from tqdm import tqdm
 register_all_modules()
 
 # 모델 불러오기 (HRNet)
-# 현재 스크립트(crop_image_keypoints.py)의 절대 경로
+# 현재 스크립트(crop_image_keypoints.py)의 경로
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 모델 설정 파일 & 체크포인트 파일 절대 경로 설정
+# 모델 설정 파일 & 체크포인트 파일 경로 설정
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "td-hm_hrnet-w48_8xb32-210e_coco-256x192.py")
 CHECKPOINT_PATH = os.path.join(SCRIPT_DIR, "hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth")
 model = init_model(CONFIG_PATH, CHECKPOINT_PATH, device='cuda:0')

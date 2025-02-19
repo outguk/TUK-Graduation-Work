@@ -40,7 +40,7 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     print(f"영상의 FPS: {fps}")
 
     # 2초 동안의 총 프레임 수
-    block_duration_frames = int(round(2.0 * fps)) # 2->2.5로 변경 
+    block_duration_frames = int(round(2.0 * fps)) # 2로 변경 
     
     ## 실제 사용할 데이터는 2초 이상의 영상이기 때문에 예외처리 X
     # if block_duration_frames < 10:

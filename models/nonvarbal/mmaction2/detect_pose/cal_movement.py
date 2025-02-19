@@ -10,7 +10,7 @@ from tqdm import tqdm
 import re
 
 def natural_key(text):
-    """파일 이름을 자연스럽게 정렬하기 위한 키 생성"""
+    #파일 순서 정렬 
     return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
 
 def calculate_movement(previous_keypoints, current_keypoints):
@@ -81,15 +81,15 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
             annotations.append(annotation)
             split_xsub_val.extend(frame_dirs)
 
-            print(f"✔ 저장된 프레임: {frame_dirs[0]} (움직임 변화량: {movement:.2f})")
+            # print(f"\n 저장된 프레임: {frame_dirs[0]} (움직임 변화량: {movement:.2f})")
         else:
             normal_behavior_frames.append(frame_dirs[0])
 
         # ✅ 디버깅: 프레임별 움직임 변화량 출력
-        print(f"🟡 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} (임계값: {movement_threshold}) {'✅ 모델 입력' if should_save else '⏹ 정상 행동'}")
+        print(f"\n 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} (임계값: {movement_threshold}) {'✅ 모델 입력' if should_save else '⏹ 정상 행동'}")
 
     # 🔥 전체 움직임 변화량 분석
-    print("\n📊 움직임 변화량 분석:")
+    print("\n 움직임 변화량 분석:")
     print(f"  ▶ 평균 변화량: {np.mean(movement_values):.2f}")
     print(f"  ▶ 최소 변화량: {np.min(movement_values):.2f}")
     print(f"  ▶ 최대 변화량: {np.max(movement_values):.2f}")
