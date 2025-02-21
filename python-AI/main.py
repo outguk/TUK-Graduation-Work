@@ -37,10 +37,15 @@ async def upload_video(file: UploadFile = File(...)):
     """
     사용자가 업로드한 MP4 파일을 저장하고 분석하는 API
     """
+    logging.info(f"📂 업로드된 파일: {file.filename}, Content-Type: {file.content_type}")
+    print(f"📂 업로드된 파일: {file.filename}, Content-Type: {file.content_type}")
+
+    
     # 파일 확장자 검증
     if not file.filename.endswith(".mp4"):
+        logging.info("Video uploaded failed")
         raise HTTPException(status_code=400, detail="Only MP4 files are allowed")
-
+    
     # 파일 저장 경로 설정
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 

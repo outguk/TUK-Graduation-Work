@@ -191,7 +191,8 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
 
         # 5. 결과 반환(각 구간별 결과가 저장됨)
         result = {
-            "segment_data": segment_data,
+            # 구간 별 측정 치(테스트를 위해 숨겨둠)
+            # "segment_data": segment_data,
             "mean_rms": mean_rms,
             "mean_db": mean_db
         }

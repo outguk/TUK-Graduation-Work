@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>파일 업로드</title>
+    <style>
+        /* 진행 상태 표시를 위한 오버레이 스타일 */
+        #progressOverlay {
+            display: none; /* 기본적으로 숨김 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            text-align: center;
+            padding-top: 20%;
+            font-size: 1.5em;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<h2>FastAPI로 MP4 파일 업로드</h2>
+
+<!-- 전통적인 서버 사이드 렌더링 방식으로 전송 -->
+<form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" onsubmit="showProgress()">
+    <input type="file" id="file" name="file" accept="video/mp4" required>
+    <button type="submit" id="uploadBtn" disabled>업로드</button>
+</form>
+
+<!-- 진행 상태 오버레이 -->
+<div id="progressOverlay">파일 분석 중입니다. 잠시만 기다려주세요...</div>
+
+<!-- 서버에서 전달된 message -->
+<p th:text="${message}"></p>
+
+<!-- 분석 결과 표시 예시 -->
+<div>
+    <h3>분석 결과</h3>
+    <!-- 분석된 파일 이름 -->
+    <p>파일 이름: <span th:text="${analysisFilename}">No File</span></p>
+
+    <!-- 말하기 속도 정보: speakingSpeed가 Map/JSON 형태라면, 간단히 전체를 출력하거나 세부 항목을 골라서 출력 -->
+    <h4>말하기 속도</h4>
+    <pre th:text="${speakingSpeed}">No speed data</pre>
+
+    <!-- 음량 분석 정보: volumeAnalysis가 Map/JSON 형태라면 마찬가지로 출력 -->
+    <h4>음량 분석</h4>
+    <pre th:text="${volumeAnalysis}">No volume data</pre>
+</div>
+
+<script>
+    // 파일 선택 시 업로드 버튼 활성화
+    document.getElementById("file").addEventListener("change", function() {
+        document.getElementById("uploadBtn").disabled = !this.files.length;
+    });
+
+    // 폼 제출 시 진행 상태 오버레이 표시
+    function showProgress() {
+        document.getElementById("progressOverlay").style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
