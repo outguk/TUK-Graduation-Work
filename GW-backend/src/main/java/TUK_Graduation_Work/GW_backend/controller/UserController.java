@@ -52,7 +52,7 @@ public class UserController {
        if(userService.findOne(form.getName()).isPresent()){ // form.getName()이 존재하고
             Optional<User> user = userService.findOne(form.getName());
 
-
+            //ㅁ
             // 그에 해당하는 비밀번호가 입력된 비밀번호와 일치하면
             if(form.getPassword().equals(user.map(User::getPassword).orElse(null))){
                 model.addAttribute("name", form.getName());
