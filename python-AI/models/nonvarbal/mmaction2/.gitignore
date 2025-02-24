@@ -1,0 +1,12 @@
+# .gitignore 파일 내용
+
+# json 폴더 아래 모든 폴더와 파일 제외 - 전처리 전 AIHub 데이터 
+json/
+
+# data 폴더 제외 - 전처리 후 AIHub 데이터(.pkl) 
+data/
+
+# work_dirs 폴더 제외 - 학습된 모델 저장 폴더
+work_dirs/
+
+keypoints/
