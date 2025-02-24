@@ -1,0 +1,12 @@
+[
+  "tests/test_vocalization_analysis.py::test_extract_audio",
+  "tests/tests_vocalization/test_analyze_volume.py::test_analyze_volume",
+  "tests/tests_vocalization/test_audio_preprocessing.py::test_band_pass_filter",
+  "tests/tests_vocalization/test_audio_preprocessing.py::test_change_sampling_rate",
+  "tests/tests_vocalization/test_audio_preprocessing.py::test_extract_audio",
+  "tests/tests_vocalization/test_audio_preprocessing.py::test_remove_noise",
+  "tests/tests_vocalization/test_audio_preprocessing.py::test_save_filtered_audio",
+  "tests/tests_vocalization/test_extract_audio.py::test_extract_audio",
+  "tests/tests_vocalization/test_speech_speed.py::test_transcribe_audio",
+  "tests/tests_vocalization/test_whisperSTT.py::test_transcribe_audio"
+]

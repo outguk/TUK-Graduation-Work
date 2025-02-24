@@ -1,0 +1,9 @@
+# Created by pytest automatically.
+
+# Ignore Python virtual environments
+venv/
+
+# Ignore large media files
+*.mp4
+*.mov
+*.wav

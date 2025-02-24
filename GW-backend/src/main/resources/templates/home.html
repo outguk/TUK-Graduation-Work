@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello TUK</title>
+</head>
+<body>
+
+<div class="container">
+    <div>
+        <h1>Hello TUK</h1>
+        <p>회원 기능</p>
+        <form action="/users/login" method="post">
+            <div class="form-group">
+                <label for="name">이름</label>
+                <input type="text" id="name" name="name" placeholder="이름을 입력하세요">
+            </div>
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="text" id="password" name="password" placeholder="비밀번호를 입력하세요">
+            </div>
+            <button type="submit">로그인</button>
+        </form>
+        <p>
+            <a href="/users/new">회원 가입</a>
+            <a href="/users">회원 목록</a>
+        </p>
+    </div>
+</div> <!-- /container -->
+
+</body>
+</html>
