@@ -2,6 +2,8 @@
 
 # nonverbal 폴더에서 main.py 실행
 
+# -- noverbal 실행 순서 및 설명 --
+
 1. 영상 프레임 추출 (mmaction2/script/extract_frames.py)
 
    - 비디오 파일 열기 (OpenCV 사용)
@@ -47,7 +49,7 @@
 
 샘플 6 (영상 구간: 10.00s ~ 11.80s, 프레임: 50 ~ 59, frame_dir: frame_50):
 
-정상 행동
+정상 행동 (확률 85% 미만)
 
 1.  손동작(얼굴) (51.12%)
 2.  머리동작(좌우흔들기) (48.54%)
@@ -60,3 +62,51 @@
 1.  자세(좌우흔들기) (100.00%)
 2.  팔동작(무의미반동) (0.00%)
 3.  손동작(머리) (0.00%)
+
+# JSON 파일 속성, 타입, 설명
+
+```
+- sample_number   : int      - 샘플 번호 (1부터 시작)
+- time_range      : string   - 분석된 영상 구간 (초 단위, 시작시간 ~ 종료시간)
+- frame_range     : string   - 분석된 프레임 범위 (예: 0 ~ 9)
+- frame_dir	      : string   - 분석된 프레임이 저장된 디렉토리명 (예: frame_0)
+- is_normal	      : bool     - 정상 행동 여부 (true: 정상 행동, false: 이상 행동)
+- top_classes     : list     - (이상 행동일 경우) 예측 확률이 높은 상위 3개 클래스
+   - class	        : string   - 예측된 행동 클래스 (예: 손동작(얼굴))
+   - probability    : float    - 해당 행동의 예측 확률 (%)
+```
+
+# JSON 데이터 출력 예시
+
+```
+{
+    "results": [
+        {
+            "sample_number": 1,
+            "time_range": "0.00s ~ 1.80s",
+            "frame_range": "0 ~ 9",
+            "frame_dir": "frame_0",
+            "is_normal": false,
+            "top_classes": [
+                {
+                    "class": "자세(비비꼬기)",
+                    "probability": 100.0
+                },
+                {
+                    "class": "자세(비스듬히)",
+                    "probability": 0.0
+                },
+                {
+                    "class": "손동작(머리)",
+                    "probability": 0.0
+                }
+            ]
+        },
+        {
+            "sample_number": 2,
+            "time_range": "2.00s ~ 3.80s",
+            "frame_range": "10 ~ 19",
+            "frame_dir": "frame_10",
+            "is_normal": true
+        },
+```

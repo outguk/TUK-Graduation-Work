@@ -33,10 +33,11 @@ threshold = 0.85  # 정상 행동 필터링 기준 확률 (85%)
 # JSON 데이터 저장 리스트
 json_results = []
 
-# 결과 출력 (정상 행동 제외)
-previous_frame = None  # 이전 프레임 번호 저장 변수
+# 이전 프레임 번호 저장 변수
+previous_frame = None
+sample_idx = 1  # 샘플 번호 (정상 행동 포함)
 
-for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
+for res, frame_dir in zip(results, used_frame_dirs):
     probs = np.array(res['pred_score'])  # 확률 리스트 (NumPy 배열 변환)
     
     # 확률이 높은 3개의 클래스 찾기
@@ -44,19 +45,33 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
     top3_probs = probs[top3_indices]  # 확률 값 가져오기
     top3_classes = [class_labels[i] for i in top3_indices]  # 클래스명 변환
     
-    top1_index = np.argmax(probs)  # 가장 높은 확률을 가진 클래스 인덱스
-    top1_prob = probs[top1_index]  # Top-1 확률
+    top1_prob = top3_probs[0]  # 가장 높은 확률 값
     is_normal = bool(top1_prob < threshold)  # 정상 행동 여부
 
     # 현재 프레임 번호 가져오기 (frame_dir에서 숫자 부분 추출)
     current_frame = int(frame_dir.split('_')[-1])  # 예: frame_40 → 40
     
-    # 정상 행동이 빠진 경우, 중간 프레임을 건너뛰도록 조정
+    # 정상 행동이 빠진 경우, 중간 프레임을 건너뛰도록 JSON에 추가
     if previous_frame is not None:
         frame_gap = current_frame - previous_frame  # 이전 프레임과 현재 프레임 차이
         if frame_gap > frames_per_annotation:
-            print(f"\n⚠ [정상 행동 구간] {previous_frame + frames_per_annotation} ~ {current_frame - 1} 프레임 건너뜀")
-    
+            skipped_start = previous_frame + frames_per_annotation
+            skipped_end = current_frame - 1
+            skipped_start_time = skipped_start / fps
+            skipped_end_time = skipped_end / fps
+            
+            # ⚠ 정상 행동 구간 추가
+            json_results.append({
+                "sample_number": sample_idx,
+                "time_range": f"{skipped_start_time:.2f}s ~ {skipped_end_time:.2f}s",
+                "frame_range": f"{skipped_start} ~ {skipped_end}",
+                "frame_dir": f"frame_{skipped_start}",
+                "is_normal": True
+            })
+
+            print(f"\n⚠ [정상 행동 구간] {skipped_start_time:.2f}s ~ {skipped_end_time:.2f}s (프레임: {skipped_start} ~ {skipped_end})")
+            sample_idx += 1
+
     start_frame = current_frame
     end_frame = start_frame + frames_per_annotation - 1
 
@@ -65,7 +80,7 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
     end_time = end_frame / fps
 
     # 터미널 출력
-    print(f"\n🔹 샘플 {idx + 1} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}, frame_dir: {frame_dir}):")
+    print(f"\n🔹 샘플 {sample_idx} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}, frame_dir: {frame_dir}):")
     if is_normal:
         print("   정상 행동")
     else:
@@ -74,7 +89,7 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
 
     # JSON 데이터 저장
     sample_data = {
-        "sample_number": idx + 1,
+        "sample_number": sample_idx,
         "time_range": f"{start_time:.2f}s ~ {end_time:.2f}s",
         "frame_range": f"{start_frame} ~ {end_frame}",
         "frame_dir": frame_dir,
@@ -89,11 +104,14 @@ for idx, (res, frame_dir) in enumerate(zip(results, used_frame_dirs)):
 
     json_results.append(sample_data)
 
+    # 샘플 번호 증가
+    sample_idx += 1
+
     # 🔹 현재 프레임을 previous_frame으로 업데이트
     previous_frame = current_frame
 
-# ✅ **JSON 파일로 저장**
+# ✅ JSON 파일로 저장
 with open(output_json_file, "w", encoding="utf-8") as f:
     json.dump({"results": json_results}, f, indent=4, ensure_ascii=False)
 
-print(f"\nJSON 결과 저장 완료: {output_json_file}")
+print(f"\n✅ JSON 결과 저장 완료: {output_json_file}")
