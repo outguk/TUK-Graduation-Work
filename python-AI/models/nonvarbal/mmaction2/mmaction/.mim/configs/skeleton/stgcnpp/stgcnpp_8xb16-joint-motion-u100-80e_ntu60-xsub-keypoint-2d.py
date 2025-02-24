@@ -35,10 +35,10 @@ test_pipeline = [
     # dict(type='PreNormalize2D'),
     dict(type='GenSkeFeat', dataset='coco', feats=['jm']),
     dict(
-        type='UniformSampleFrames', clip_len=10, num_clips=10,
+        type='UniformSampleFrames', clip_len=100, num_clips=10,
         test_mode=True),
     dict(type='PoseDecode'),
-    dict(type='FormatGCNInput', num_person=2),
+    dict(type='FormatGCNInput', num_person=1),
     dict(type='PackActionInputs')
 ]
 
@@ -73,7 +73,7 @@ test_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False),
     dataset=dict(
         type=dataset_type,
-        ann_file=ann_file,
+        ann_file='../data/keypoints/results.pkl', # 여기 변경 
         pipeline=test_pipeline,
         split='xsub_val',
         test_mode=True))

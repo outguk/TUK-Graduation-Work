@@ -3,7 +3,14 @@ setup.cfg
 setup.py
 mmaction/__init__.py
 mmaction/registry.py
+mmaction/test.py
 mmaction/version.py
+mmaction2.egg-info/PKG-INFO
+mmaction2.egg-info/SOURCES.txt
+mmaction2.egg-info/dependency_links.txt
+mmaction2.egg-info/not-zip-safe
+mmaction2.egg-info/requires.txt
+mmaction2.egg-info/top_level.txt
 mmaction/apis/__init__.py
 mmaction/apis/inference.py
 mmaction/apis/inferencers/__init__.py
@@ -192,9 +199,3 @@ mmaction/utils/typing_utils.py
 mmaction/visualization/__init__.py
 mmaction/visualization/action_visualizer.py
 mmaction/visualization/video_backend.py
-mmaction2.egg-info/PKG-INFO
-mmaction2.egg-info/SOURCES.txt
-mmaction2.egg-info/dependency_links.txt
-mmaction2.egg-info/not-zip-safe
-mmaction2.egg-info/requires.txt
-mmaction2.egg-info/top_level.txt

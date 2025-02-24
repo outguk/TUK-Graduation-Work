@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# 발성 분석 코드
-=======
 # 발성 분석 코드
 
 import logging
@@ -281,4 +278,3 @@ if __name__ == "__main__":
     results = analyze_presentation(video_path)
     print("Final Results:")
     print(json.dumps(results, indent=4))
->>>>>>> 1-vocalization-develop

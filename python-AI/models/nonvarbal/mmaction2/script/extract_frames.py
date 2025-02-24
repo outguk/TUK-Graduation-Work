@@ -19,7 +19,15 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
         video_path = sys.argv[1]
     else:
         raise ValueError("❌ ERROR: 비디오 파일 경로가 제공되지 않았습니다.")
-    video_path = os.path.abspath(video_path)
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))  
+    project_root = os.path.abspath(os.path.join(script_dir, "../../"))  
+    video_path = os.path.abspath(os.path.join(project_root, video_path))
+    output_dir = os.path.abspath(os.path.join(project_root, "data/frames"))  
+        
+    print(f" [DEBUG] 실행 디렉토리: {script_dir}")
+    print(f" [DEBUG] 비디오 파일 경로: {video_path}")
+    print(f" [DEBUG] 프레임 저장 경로: {output_dir}")
 
     # ✅ 비디오 파일 확인 로그 추가
     print(f"\n📂 [DEBUG] 비디오 파일 경로 확인: {video_path}")
@@ -73,9 +81,15 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
 
 # 경로 수정 (통합실행)
 if __name__ == "__main__":
-    video_path = 'data/videos/test.mp4'  # 비디오 파일 경로
-    output_dir = 'data/frames'           # 프레임 저장 경로
-    file_format = 'jpg'                      # 저장 파일 형식 ('jpg' 또는 'png')
+    # video_path = 'data/videos/test.mp4'  # 비디오 파일 경로
+    # output_dir = 'data/frames'           # 프레임 저장 경로
+    # file_format = 'jpg'                      # 저장 파일 형식 ('jpg' 또는 'png')
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))  
+    project_root = os.path.abspath(os.path.join(script_dir, "../../"))  
+    video_path = os.path.join(project_root, 'data/videos/test.mp4')  
+    output_dir = os.path.join(project_root, 'data/frames')  
+    file_format = 'jpg'
 
     saved_frames = video_to_frames(video_path, output_dir, file_format)
     print(f"{saved_frames}개의 프레임이 저장되었습니다.")
