@@ -104,14 +104,22 @@ def process_results(results, used_frame_dirs):
 def save_json_results(json_results, output_filepath):
     with open(output_filepath, "w", encoding="utf-8") as f:
         json.dump({"results": json_results}, f, indent=4, ensure_ascii=False)
-    print(f"\n JSON 결과 저장 완료: {output_filepath}")
+    print(f"\n JSON 결과 저장 완료: {output_filepath}\n")
 
 def main(result_file, keypoints_pkl_file, output_json_file):
     results = load_pickle_file(result_file)
     keypoints_data = load_pickle_file(keypoints_pkl_file)
     used_frame_dirs = get_used_frame_dirs(keypoints_data)
     json_results = process_results(results, used_frame_dirs)
-    save_json_results(json_results, output_json_file)
-    # print(json_results)
-    return json_results
 
+    #json 파일 저장장
+    save_json_results(json_results, output_json_file)
+    
+    # Python 딕셔너리 형식으로 변환
+    dict_results = {res["sample_number"]: res for res in json_results}
+
+    
+    # print(json_results)
+    
+    # Python 딕셔너리 반환
+    return dict_results  
