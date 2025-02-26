@@ -2,6 +2,7 @@
 import subprocess
 import os
 import shutil
+import importlib
 
 # 📌 프로젝트 루트 디렉토리 (main.py가 있는 곳)
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +48,23 @@ subprocess.run(test_command, cwd=MMACTION2_DIR, check=True)
 
 # 최종 결과 확인
 print("\n Step 5: 모델 예측 결과 확인 (checkresult.py 실행)")
-subprocess.run(["python", os.path.join(MMACTION2_DIR, "2s", "checkresult.py")],cwd=PROJECT_ROOT, check=True)
+# subprocess.run(["python", os.path.join(MMACTION2_DIR, "2s", "checkresult.py")],cwd=PROJECT_ROOT, check=True)
+import sys
+CHECKRESULT_DIR = os.path.join(MMACTION2_DIR, "2s")
+sys.path.insert(0, CHECKRESULT_DIR)  # 가장 우선순위로 설정
 
+# 🔹 기존에 잘못 import된 checkresult 제거 (중복 import 방지)
+if "checkresult" in sys.modules:
+    del sys.modules["checkresult"]
+
+# 🔹 강제로 checkresult import
+import checkresult
+importlib.reload(checkresult)  # checkresult.py 재로드 (필수)
+
+result_file = os.path.join(DATA_DIR, "test_results.pkl")
+keypoints_pkl_file = os.path.join(DATA_DIR, "keypoints/results.pkl")
+output_json_file = os.path.join(DATA_DIR, "inference_results.json")
+
+json_results = checkresult.main(result_file, keypoints_pkl_file, output_json_file)
+print(json_results)
 print("\n모든 과정 완료")
