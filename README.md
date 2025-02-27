@@ -1,6 +1,7 @@
 현재 기존 nonvarbel 폴더의 main.py 코드를 nonvarbal_analysis.py로 옮긴 후 함수로 만들어 python-AI에서 import하여 사용해 비언어 분석을 수행하도록 수정되어있음
 
 **통합 버전2 사용 방법**
+
 **1.** GW_backend/src/main/java/TUK-Graduation-Work/GW-backend의 BackendApplication.java를 실행하면 톰캣 서버가 생성됨
 
 **2.** 실행 디렉토리 python-AI에서 main.py를 실행(명령어 -> **uvicorn main:app -reload --host 0.0.0.0 --port 5000**)
