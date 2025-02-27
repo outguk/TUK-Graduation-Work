@@ -37,10 +37,12 @@
    - 예측 결과를 test_results.pkl에 저장
 
 5. 예측 결과 확인 (mmaction2/2s/checkresult.py)
+
    - test_results.pkl (예측 결과) & results.pkl (입력 데이터) 불러오기
    - 각 프레임별 예측 확률이 높은 Top-3 행동을 출력
    - 만약 정상 행동(움직임이 적음)이면 별도 처리
-   - 결과를 터미널에 출력
+
+   - checkresult 딕셔너리 형식 결과 반환(JSON 파일과 같은 내용)
 
 - movement 계산에서 제외된 프레임은 별도 출력
 - top1의 예측 확률이 85%미만일 경우 정상행동으로 출력 후 top1~3의 확률 출력
@@ -109,4 +111,30 @@
             "frame_dir": "frame_10",
             "is_normal": true
         },
+```
+
+# checkresult.py의 리턴값 예시
+
+```
+{
+    1: {
+        "sample_number": 1,
+        "time_range": "0.00s ~ 2.00s",
+        "frame_range": "0 ~ 9",
+        "frame_dir": "frame_0",
+        "is_normal": False,
+        "top_classes": [
+            {"class": "팔동작(무의미반동)", "probability": 88.5},
+            {"class": "머리동작(고개흔들기)", "probability": 5.2},
+            {"class": "자세(비비꼬기)", "probability": 3.1}
+        ]
+    },
+    2: {
+        "sample_number": 2,
+        "time_range": "2.00s ~ 4.00s",
+        "frame_range": "10 ~ 19",
+        "frame_dir": "frame_10",
+        "is_normal": True
+    }
+}
 ```
