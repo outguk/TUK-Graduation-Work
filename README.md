@@ -1,7 +1,7 @@
 **수정 사항**
 
-- 현재 기존 nonvarbel 폴더의 main.py 코드를 nonvarbal_analysis.py로 옮긴 후 함수로 만들어 python-AI에서 import하여 사용해 비언어 분석을 수행하도록 수정되어있음
-- 현재 python-Ai의 main.py에서 비디오 분석 실행 부분에서 nonverbel_analysis_result로 비언어 분석 함수를 불러와 분석 결과값을 받도록 하고 이를 main.py에서 발성 분석과 같이 반환하여 엔드 서버로 보내주는 구조
+- 현재 기존 nonvarbel 폴더의 main.py 코드를 nonvarbal_analysis.py로 옮긴 후 함수로 만들어 python-AI의 main.py에서 import하여 사용해 비언어 분석을 수행하도록 수정되어있음
+- 또 python-Ai의 main.py에서 비디오 분석 실행 부분에서 nonverbel_analysis_result로 비언어 분석 함수를 불러와 분석 결과값을 받도록 하고 이를 발성 분석과 같이 반환하여 백엔드 서버로 보내주는 구조
 
 **통합 버전2 사용 방법**
 
