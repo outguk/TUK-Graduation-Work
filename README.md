@@ -5,11 +5,13 @@
 
 **통합 버전2 사용 방법**
 
-**1.** GW_backend/src/main/java/TUK-Graduation-Work/GW-backend의 BackendApplication.java를 실행하면 톰캣 서버가 생성됨
+**1.** GW_backend/src/main/java/TUK-Graduation-Work/GW-backend의 BackendApplication.java를 실행하면 톰캣 서버가 생성됨(bulid.gradle의 java 버전을 본인 컴퓨터 java 버전에 맞춰주어야 함 17 or 23)
 
-**2.** 실행 디렉토리 python-AI에서 main.py를 실행(명령어 -> **uvicorn main:app -reload --host 0.0.0.0 --port 5000**)
+**2.** python-AI 디렉토리로 이동 해 main.py를 실행(명령어 -> **uvicorn main:app -reload --host 0.0.0.0 --port 5000**)
 
 **3.** 이후 localhost:8080에 접속, 업로드만 테스트 시 바로 localhost:8080/upload로 들어가면 됨
+
+* (intellij 에서 BackendApplication.java를 실행하고 VSC에서 main.py를 실행하는 방식으로 진행함. VSC에서 동시에 되는 지는 해보지 않음)
 
 - 통합 시 중요한 것은 python-AI의 main.py함수에서 @app.post("/upload-video/") 부분을 보면 웹에서 업로드된 영상을 file_path 경로에 저장하고 있으며 비디오 분석 실행 부분에서 이 경로(file_path)를 기준으로 분석을 실행하도록 해야 함.
 - 분석 시 생성되는 영상의 프레임, 키포인트나 visuailization의 경로는 굳이 바꿀 필요 없을듯
