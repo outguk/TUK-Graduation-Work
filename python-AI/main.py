@@ -9,6 +9,7 @@ import json
 import logging
 import shutil
 from models.vocalization.vocalization_analysis import extract_audio, transcribe_audio, analyze_speaking_speed, analyze_volume# models 디렉토리에서 AI 모델 로드
+from models.nonvarbal.nonvarbal_analysis import video_nonverbal_analysis
 
 app = FastAPI()
 """ 2/7 개선할 사항
@@ -25,7 +26,7 @@ logging.basicConfig(
 class RequestData(BaseModel):
     text: str
 
-# 업로드된 파일 저장 디렉토리
+# 업로드된 파일을 저장하는 디렉토리 생성
 UPLOAD_DIR = "./uploaded_videos"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -46,7 +47,7 @@ async def upload_video(file: UploadFile = File(...)):
         logging.info("Video uploaded failed")
         raise HTTPException(status_code=400, detail="Only MP4 files are allowed")
     
-    # 파일 저장 경로 설정
+    # 업로드된 파일 저장 경로 설정
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     # 파일 저장
@@ -56,23 +57,28 @@ async def upload_video(file: UploadFile = File(...)):
     logging.info(f"Video uploaded: {file_path}")
 
     # 오디오 추출
-    audio_path = file_path.replace(".mp4", ".wav")
+    audio_path = file_path.replace(".mp4", ".wav") # 추출된 wav가 저장될 경로
     await extract_audio(file_path, audio_path)
 
     # 음성 텍스트 변환 (STT)
     transcription = await transcribe_audio(audio_path)
 
-    # 분석 수행
+    # 음량. 속도 분석 수행
     speaking_speed = analyze_speaking_speed(transcription, audio_path)
     volume_analysis = analyze_volume(audio_path)
+
+    # # 비디오 분석 실행 (nonvarvel의 main 함수 역할)
+    nonverbel_analysis_result = video_nonverbal_analysis(file_path)
 
     # 결과 반환
     results = {
         "filename": file.filename,
         "speaking_speed": speaking_speed,
         "volume_analysis": volume_analysis,
+        "nonverbel_analysis" : nonverbel_analysis_result
     }
 
+    logging.info(f" 분석 결과 : {results}")
     logging.info(f" {file.filename} 파일 분석 완료")
 
     return results

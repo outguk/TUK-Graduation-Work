@@ -1,11 +1,16 @@
 import pickle
 import numpy as np
 import json
+import os
+
+# python-AI 를 기준으로 프로젝트 루트 설정
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",".."))
+RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
 
 # 결과 파일 경로
 result_file = "data/test_results.pkl"
 keypoints_pkl_file = "data/keypoints/results.pkl"  # 모델 입력으로 사용된 keypoints 데이터
-output_json_file = "data/inference_results.json"  # 결과 JSON 파일 저장 경로
+output_json_file = os.path.join(RESULTS_DIR, "inference_results.json")  # 결과 JSON 파일 저장 경로
 
 # 결과 파일 로드
 with open(result_file, "rb") as f:
@@ -114,4 +119,5 @@ for res, frame_dir in zip(results, used_frame_dirs):
 with open(output_json_file, "w", encoding="utf-8") as f:
     json.dump({"results": json_results}, f, indent=4, ensure_ascii=False)
 
+print(f"결과 : {json_results}")
 print(f"\n✅ JSON 결과 저장 완료: {output_json_file}")

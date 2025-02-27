@@ -226,7 +226,7 @@ def analyze_pronunciation(transcription):
     }
 
 # Main Function
-# 메인 함수
+# 메인 함수 (모듈화 버전, 나중에 통합)
 def analyze_presentation(video_file):
     # 분석 프로세스 시작 메시지 출력
     print(f"Starting analysis for video file: {video_file}")

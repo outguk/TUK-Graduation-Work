@@ -23,7 +23,7 @@ def video_to_frames(video_path, output_dir, file_format='jpg'):
     script_dir = os.path.dirname(os.path.abspath(__file__))  
     project_root = os.path.abspath(os.path.join(script_dir, "../../"))  
     video_path = os.path.abspath(os.path.join(project_root, video_path))
-    output_dir = os.path.abspath(os.path.join(project_root, "data/frames"))  
+    output_dir = os.path.abspath(os.path.join(project_root, "data/frames"))
         
     print(f" [DEBUG] 실행 디렉토리: {script_dir}")
     print(f" [DEBUG] 비디오 파일 경로: {video_path}")
@@ -86,9 +86,9 @@ if __name__ == "__main__":
     # file_format = 'jpg'                      # 저장 파일 형식 ('jpg' 또는 'png')
     
     script_dir = os.path.dirname(os.path.abspath(__file__))  
-    project_root = os.path.abspath(os.path.join(script_dir, "../../"))  
-    video_path = os.path.join(project_root, 'data/videos/test.mp4')  
-    output_dir = os.path.join(project_root, 'data/frames')  
+    project_root = os.path.abspath(os.path.join(script_dir, "../../../../"))  
+    video_path = os.path.join(project_root, 'uploaded_videos/test.mp4')  
+    output_dir = os.path.join(project_root, 'models/nonvarval/data/frames')
     file_format = 'jpg'
 
     saved_frames = video_to_frames(video_path, output_dir, file_format)

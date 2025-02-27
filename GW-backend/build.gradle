@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(23)
 	}
 }
 
@@ -39,7 +39,7 @@ dependencies {
 	implementation 'io.projectreactor:reactor-core:3.6.0'
 
 	// (선택 사항) 로그 출력을 위한 Reactor Tools
-	implementation 'io.projectreactor.tools:block hound:1.0.6.RELEASE'
+	implementation 'io.projectreactor.tools:blockhound:1.0.6.RELEASE'
 }
 
 tasks.named('test') {
