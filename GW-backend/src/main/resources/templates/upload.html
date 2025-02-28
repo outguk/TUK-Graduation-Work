@@ -52,7 +52,33 @@
     <pre th:text="${volumeAnalysis}">No volume data</pre>
 
     <h4>비언어적 표현 분석</h4>
-    <pre th:text="${nonverbalAnalysis}">No volume data</pre>
+    <table border="1">
+        <thead>
+        <tr>
+            <th>샘플 번호</th>
+            <th>시간 구간</th>
+            <th>정상 여부</th>
+            <th>상위 행동 분석</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- 반복문 데이터 출력 -->
+        <tr th:each="analysis : ${nonverbalAnalysis}">
+            <td th:text="${analysis.value.sample_number}">-</td>
+            <td th:text="${analysis.value.time_range}">-</td>
+            <td th:text="${analysis.value.is_normal} ? '정상' : '비정상'">-</td>
+            <td>
+                <!-- 비정상인 경우 top_classes 표시 -->
+                <ul th:if="${!analysis.value.is_normal}">
+                    <li th:each="classInfo : ${analysis.value.top_classes}">
+                        <span th:text="${classInfo.class}"></span> (<span th:text="${classInfo.probability}"></span>%)
+                    </li>
+                </ul>
+                <span th:if="${analysis.value.is_normal}">-</span>
+            </td>
+        </tr>
+        </tbody>
+    </table>
 </div>
 
 <script>

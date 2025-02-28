@@ -30,6 +30,9 @@ class RequestData(BaseModel):
 UPLOAD_DIR = "./uploaded_videos"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+base_dir = os.path.dirname(os.path.abspath(__file__))  # 현재 스크립트가 실행되는 디렉토리
+
+
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -68,14 +71,19 @@ async def upload_video(file: UploadFile = File(...)):
     volume_analysis = analyze_volume(audio_path)
 
     # # 비디오 분석 실행 (nonvarvel의 main 함수 역할)
-    nonverbel_analysis_result = video_nonverbal_analysis(file_path)
+    # nonverbel_analysis_result = video_nonverbal_analysis(file_path)
+
+    absolute_file_path = os.path.abspath(file_path)
+    nonverbel_analysis_result = video_nonverbal_analysis(absolute_file_path)
+
 
     # 결과 반환
     results = {
         "filename": file.filename,
         "speaking_speed": speaking_speed,
         "volume_analysis": volume_analysis,
-        "nonverbel_analysis" : nonverbel_analysis_result
+        "nonverbal_analysis" : nonverbel_analysis_result
+
     }
 
     logging.info(f" 분석 결과 : {results}")

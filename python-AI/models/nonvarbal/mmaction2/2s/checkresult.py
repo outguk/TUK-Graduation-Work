@@ -3,9 +3,6 @@ import numpy as np
 import json
 import os
 
-# python-AI 를 기준으로 프로젝트 루트 설정
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",".."))
-RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
 
 # 클래스 레이블 정의
 class_labels = [
@@ -20,8 +17,14 @@ fps = 5  # 초당 5프레임 (2초당 10프레임)
 threshold = 0.85  # 정상 행동 필터링 기준 확률 (85%)
 
 def load_pickle_file(filepath):
-    with open(filepath, "rb") as f:
-        return pickle.load(f)
+    try:
+        with open(filepath, "rb") as f:
+            data = pickle.load(f)
+        return data
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return None
 
 def get_used_frame_dirs(keypoints_data):
     return [ann["frame_dir"] for ann in keypoints_data["annotations"]]
@@ -63,7 +66,6 @@ def process_results(results, used_frame_dirs):
                     "is_normal": True
                 })
 
-                # print(f"\n⚠ [정상 행동 구간] {skipped_start_time:.2f}s ~ {skipped_end_time:.2f}s (프레임: {skipped_start} ~ {skipped_end})")
                 sample_idx += 1
 
         start_frame = current_frame
@@ -72,14 +74,6 @@ def process_results(results, used_frame_dirs):
         # 시간 계산 (프레임 → 초 변환)
         start_time = start_frame / fps
         end_time = end_frame / fps
-
-        # 터미널 출력
-        # print(f"\n샘플 {sample_idx} (영상 구간: {start_time:.2f}s ~ {end_time:.2f}s, 프레임: {start_frame} ~ {end_frame}, frame_dir: {frame_dir}):")
-        # if is_normal:
-        #     print("   정상 행동")
-        # else:
-        #     for i in range(3):
-        #         print(f"   {i+1}. {top3_classes[i]} ({top3_probs[i] * 100:.2f}%)")
 
         # JSON 데이터 저장
         sample_data = {
@@ -101,7 +95,7 @@ def process_results(results, used_frame_dirs):
         # 샘플 번호 증가
         sample_idx += 1
 
-        # 🔹 현재 프레임을 previous_frame으로 업데이트
+        # 현재 프레임을 previous_frame으로 업데이트
         previous_frame = current_frame
 
     return json_results

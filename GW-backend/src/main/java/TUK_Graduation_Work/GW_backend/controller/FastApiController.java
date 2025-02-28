@@ -59,7 +59,7 @@ public class FastApiController {
                         model.addAttribute("analysisFilename", resultMap.get("filename"));
                         model.addAttribute("speakingSpeed", resultMap.get("speaking_speed"));
                         model.addAttribute("volumeAnalysis", resultMap.get("volume_analysis"));
-                        model.addAttribute("nonverbalAnalysis", resultMap.get("nonverbal_analysis_result"));
+                        model.addAttribute("nonverbalAnalysis", resultMap.get("nonverbal_analysis"));
 
                         // "upload"라는 Thymeleaf 템플릿으로 이동
                         return Mono.just("upload");

@@ -1,6 +1,7 @@
 # 비언어적 요소 분석 코드
 import subprocess
 import os
+import sys
 
 def video_nonverbal_analysis(video_file_path: str) -> dict:
     """
@@ -57,10 +58,18 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         
         # Step 5: 모델 예측 결과 확인 (checkresult.py 실행) 및 분석 결과 반환
         print("\n🚀 Step 5: 모델 예측 결과 확인 (checkresult.py 실행)")
-        result = subprocess.run(
-            ["python", os.path.join(MMACTION2_DIR, "2s", "checkresult.py")],
-            cwd=PROJECT_ROOT, check=True,capture_output=True, text=True
-        )
+        checkresult_dir = os.path.join(MMACTION2_DIR, "2s")
+        sys.path.insert(0, checkresult_dir)
+        print("📌 sys.path:", sys.path)
+
+        import checkresult
+
+        result_file = os.path.join(DATA_DIR, "test_results.pkl")
+        keypoints_pkl_file = os.path.join(DATA_DIR, "keypoints/results.pkl")
+        output_json_file = os.path.join(DATA_DIR, "inference_results.json")
+
+        result = checkresult.main(result_file, keypoints_pkl_file, output_json_file)
+        
         
         print("\n모든 과정 완료")
     
