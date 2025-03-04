@@ -5,6 +5,7 @@
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$/TUK-Graduation-Work/GW-backend" />
+        <option name="gradleHome" value="$USER_HOME$/gradle-8.13-bin/gradle-8.13" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$/TUK-Graduation-Work/GW-backend" />

@@ -19,7 +19,7 @@ def calculate_movement(previous_keypoints, current_keypoints):
     mean_movement = np.mean(movement)
     return mean_movement
 
-def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_threshold=30.0):
+def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_threshold=20.0):
     """JSON 데이터를 읽어서 PKL로 변환 (키포인트 변화량 적용)"""
     annotations = []
     split_xsub_val = []
@@ -86,7 +86,7 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
             normal_behavior_frames.append(frame_dirs[0])
 
         # ✅ 디버깅: 프레임별 움직임 변화량 출력
-        print(f"\n 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} (임계값: {movement_threshold}) {'✅ 모델 입력' if should_save else '⏹ 정상 행동'}")
+        print(f"\n 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} (임계값: {movement_threshold}) {' 모델 입력' if should_save else ' 정상 행동'}")
 
     # 🔥 전체 움직임 변화량 분석
     print("\n 움직임 변화량 분석:")
@@ -95,7 +95,7 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
     print(f"  ▶ 최대 변화량: {np.max(movement_values):.2f}")
 
     # 🔥 정상 행동으로 분류된 프레임 출력
-    print("\n⏹ 정상 행동으로 분류된 프레임들:")
+    print("\n 정상 행동으로 분류된 프레임들:")
     for frame in normal_behavior_frames:
         print(f"  - {frame}")
 
@@ -108,9 +108,9 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
     with open(output_pkl_path, 'wb') as f:
         pickle.dump(converted_data, f)
 
-    print(f"\n✅ PKL file saved at {output_pkl_path}")
+    print(f"\n PKL file saved at {output_pkl_path}")
 
 # ✅ 실행 (슬라이딩 윈도우 없이 키포인트 변화량 적용)
-json_to_pkl("data/keypoints", "data/keypoints/results.pkl", frames_per_annotation=10, movement_threshold=30.0)
+json_to_pkl("data/keypoints", "data/keypoints/results.pkl", frames_per_annotation=10, movement_threshold=20.0)
 
 

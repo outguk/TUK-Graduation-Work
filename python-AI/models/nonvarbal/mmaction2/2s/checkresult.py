@@ -14,7 +14,7 @@ class_labels = [
 # 프레임 수 설정
 frames_per_annotation = 10  # 각 샘플 당 사용된 프레임 수 (10 프레임)
 fps = 5  # 초당 5프레임 (2초당 10프레임)
-threshold = 0.85  # 정상 행동 필터링 기준 확률 (85%)
+threshold = 0.50  # 정상 행동 필터링 기준 확률 (85%)
 
 def load_pickle_file(filepath):
     try:

@@ -26,28 +26,28 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
             raise Exception(f"ERROR: {video_file_path} 폴더가 존재하지 않습니다. 영상 파일을 넣어주세요")
         
         # Step 1: 영상에서 프레임 추출 (extract_frames.py 실행)
-        print("\n🚀 Step 1: 영상에서 프레임 추출 (extract_frames.py 실행)")
+        print("\n Step 1: 영상에서 프레임 추출 (extract_frames.py 실행)")
         subprocess.run(
             ["python", os.path.join(MMACTION2_DIR, "script", "extract_frames.py"), video_file_path],
             cwd=PROJECT_ROOT, check=True
         )
         
         # Step 2: 키포인트 검출 실행 (crop_image_keypoints.py 실행)
-        print("\n🚀 Step 2: crop_image_keypoints.py 실행")
+        print("\n Step 2: crop_image_keypoints.py 실행")
         subprocess.run(
             ["python", os.path.join(MMACTION2_DIR, "mmpose", "crop_image_keypoints.py")],
             cwd=PROJECT_ROOT, check=True
         )
         
         # Step 3: JSON을 PKL로 변환 (cal_movement.py 실행)
-        print("\n🚀 Step 3: jsontopkl.py 실행")
+        print("\n Step 3: jsontopkl.py 실행")
         subprocess.run(
             ["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py")],
             cwd=PROJECT_ROOT, check=True
         )
         
         # Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)
-        print("\n🚀 Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)")
+        print("\n Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)")
         test_command = [
             "python", "tools/test.py",
             "configs/skeleton/stgcnpp/stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py",
@@ -60,7 +60,7 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         print("\n🚀 Step 5: 모델 예측 결과 확인 (checkresult.py 실행)")
         checkresult_dir = os.path.join(MMACTION2_DIR, "2s")
         sys.path.insert(0, checkresult_dir)
-        print("📌 sys.path:", sys.path)
+        # print("📌 sys.path:", sys.path)
 
         import checkresult
 
@@ -89,4 +89,4 @@ if __name__ == "__main__":
         "test.mp4"
     )
     analysis_result = video_nonverbal_analysis(sample_video)
-    print("분석 결과:", analysis_result)
+    # print("분석 결과:", analysis_result)
