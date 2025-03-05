@@ -146,7 +146,7 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
 
         # Step 3. 발화 구간 별 음량 분석
         for start, end in non_silent_chunks:
-            segment = audio[start:end] # 시작과 끝 밀리초를 사용하여 해당 구간의 오디오 데이터를 추출
+            segment = audio[int(start * 1000):int(end * 1000)]# 시작과 끝 밀리초를 사용하여 해당 구간의 오디오 데이터를 추출
             raw_data = np.array(segment.get_array_of_samples()) # 오디오 데이터를 샘플 값(PCM 데이터)로 변환하여 NumPy 배열로 가져옴
             # 빈 구간 처리 (소리가 비어있다면 분석할 필요 x)
             if len(raw_data) == 0:

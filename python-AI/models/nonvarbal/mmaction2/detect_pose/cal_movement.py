@@ -112,5 +112,3 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
 
 # ✅ 실행 (슬라이딩 윈도우 없이 키포인트 변화량 적용)
 json_to_pkl("data/keypoints", "data/keypoints/results.pkl", frames_per_annotation=10, movement_threshold=20.0)
-
-
