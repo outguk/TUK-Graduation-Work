@@ -1,0 +1,14 @@
+# Ignore Python virtual environments
+venv/
+
+# Ignore large media files
+*.mp4
+*.mov
+*.wav
+
+# Ignore saved_model and training_1 directories
+saved_model/
+training_1/
+stt_clova/
+stt_google/
+stt_whisper/

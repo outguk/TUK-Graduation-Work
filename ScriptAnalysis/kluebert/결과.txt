@@ -1,0 +1,25 @@
+PS C:\Users\sidhd\Tukgu\TUK-Graduation-Work>  c:; cd 'c:\Users\sidhd\Tukgu\TUK-Graduation-Work'; & 'c:\Users\sidhd\AppData\Local\Programs\Python\Python310\python.exe' 'c:\Users\sidhd\.vscode\extensions\ms-python.debugpy-2025.0.0-win32-x64\bundled\libs\debugpy\launcher' '51762' '--' 'c:\Users\sidhd\Tukgu\TUK-Graduation-Work\ScriptAnalysis\kluebert\test.py' 
+GPU 사용 가능: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+c:\Users\sidhd\AppData\Local\Programs\Python\Python310\lib\site-packages\huggingface_hub\file_download.py:795: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+2025-02-10 20:41:33.817742: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX AVX2
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2025-02-10 20:41:34.080599: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1532] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 5590 MB memory:  -> device: 0, name: NVIDIA GeForce RTX 3060 Ti, pci bus id: 0000:01:00.0, compute capability: 8.6
+Traceback (most recent call last):
+  File "c:\Users\sidhd\Tukgu\TUK-Graduation-Work\ScriptAnalysis\kluebert\test.py", line 28, in <module>
+    model = tf.keras.models.load_model('C:/Users/sidhd/Tukgu/TUK-Graduation-Work/saved_model/kluebert_base_new')  # ✅
+  File "c:\Users\sidhd\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\utils\traceback_utils.py", line 67, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "c:\Users\sidhd\AppData\Local\Programs\Python\Python310\lib\site-packages\tensorflow\python\util\nest.py", line 572, in assert_same_structure
+    raise type(e)("%s\n"
+ValueError: The two structures don't have the same nested structure.
+
+First structure: type=tuple str=(({'token_type_ids': TensorSpec(shape=(None, None), dtype=tf.int32, name=None), 'attention_mask': TensorSpec(shape=(None, None), dtype=tf.int32, name=None), 'input_ids': TensorSpec(shape=(None, None), dtype=tf.int32, name=None)}, None, None, None, None, None, None, None, None, None, None, None, None, False), {})
+
+Second structure: type=tuple str=((TensorSpec(shape=(None, 128), dtype=tf.int32, name='input_ids'), TensorSpec(shape=(None, 128), dtype=tf.int32, name='attention_mask'), TensorSpec(shape=(None, 128), dtype=tf.int32, name='token_type_ids'), None, None, None, None, None, None, None, None, None, None, False), {})
+
+More specifically: Substructure "type=dict str={'token_type_ids': TensorSpec(shape=(None, None), dtype=tf.int32, name=None), 'attention_mask': TensorSpec(shape=(None, None), dtype=tf.int32, name=None), 'input_ids': TensorSpec(shape=(None, None), dtype=tf.int32, name=None)}" is a sequence, while substructure "type=TensorSpec str=TensorSpec(shape=(None, 128), dtype=tf.int32, name='input_ids')" is not
+Entire first structure:
+(({'token_type_ids': ., 'attention_mask': ., 'input_ids': .}, ., ., ., ., ., ., ., ., ., ., ., ., .), {})
+Entire second structure:
+((., ., ., ., ., ., ., ., ., ., ., ., ., .), {})
