@@ -15,3 +15,9 @@
 
 - 통합 시 중요한 것은 python-AI의 main.py함수에서 @app.post("/upload-video/") 부분을 보면 웹에서 업로드된 영상을 file_path 경로에 저장하고 있으며 비디오 분석 실행 부분에서 이 경로(file_path)를 기준으로 분석을 실행하도록 해야 함.
 - 분석 시 생성되는 영상의 프레임, 키포인트나 visuailization의 경로는 굳이 바꿀 필요 없을듯
+
+3/23 수정 내용
+
+1. models/vocalization/vocalization_evaluate.py -> 음량, 속도 평가 및 점수화 코드 추가(설정한 기준에 따라 음량이 어느정도 크고 작은지, 속도가 어느정도 빠르고 느린지를 dict에 추가 + 각 구간 별 점수와 종합 점수가 측정되도록 수정)
+2. main.py 에 평가 코드를 import 하여 측정 후 결과에 넘겨주도록 수정
+3. 백엔드의 FastAPIcontroller에서 평가한 내용을 upload.html에 넘겨주고 화면에 평가 내용이 출력되도록 수정
