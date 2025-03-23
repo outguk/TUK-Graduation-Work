@@ -114,7 +114,7 @@ def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000,
     results= {
         "overall_wpm": round(overall_wpm,2),
         "total_spoken_time": round(total_spoken_time,2),
-        # "segment_wpm": segment_wpm 구간별 wpm -> 나중에 구간 별 피드백 용
+        "segment_wpm": segment_wpm # 구간별 wpm -> 나중에 구간 별 피드백 용
     }
     logging.info(f"속도 분석 결과 -> {results}")
     return results
@@ -191,10 +191,9 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
 
         # 5. 결과 반환(각 구간별 결과가 저장됨)
         result = {
-            # 구간 별 측정 치(테스트를 위해 숨겨둠)
-            # "segment_data": segment_data,
-            "mean_rms": mean_rms,
-            "mean_db": mean_db
+            "segment_data": segment_data,
+            "mean_rms": round(mean_rms,2),
+            "mean_db": round(mean_db,2)
         }
         logging.info(f"음량 분석 결과 -> {result}")
         return result
@@ -204,26 +203,6 @@ def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
 
 # Step 5: Pronunciation Analysis
 # 발음 분석
-def analyze_pronunciation(transcription):
-    # 발음 분석 시작 메시지 출력
-    print(f"Analyzing pronunciation for transcription text.")
-    # 변환된 텍스트를 소문자로 변환하고 단어로 분리
-    words = transcription['text'].lower().split()
-    # CMU 발음 사전 로드
-    cmu = {word: phonemes for word, phonemes in cmu_dict()}
-    pronunciation_issues = []
-
-    # 각 단어를 CMU 사전과 대조
-    for word in words:
-        if word not in cmu:
-            pronunciation_issues.append(word)  # 사전에 없는 단어를 기록
-
-    # 발음 분석 결과 출력
-    print(f"Pronunciation analysis - Total words: {len(words)}, Mispronounced: {len(pronunciation_issues)}")
-    return {
-        "total_words": len(words),
-        "mispronounced_words": pronunciation_issues,
-    }
 
 # Main Function
 # 메인 함수 (모듈화 버전, 나중에 통합)

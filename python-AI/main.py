@@ -11,6 +11,9 @@ import shutil
 from models.vocalization.vocalization_analysis import extract_audio, transcribe_audio, analyze_speaking_speed, analyze_volume# models 디렉토리에서 AI 모델 로드
 from models.nonvarbal.nonvarbal_analysis import video_nonverbal_analysis
 
+# 평가
+from models.vocalization.vocalization_evaluate import evaluate_speaking_speed, evaluate_volume
+
 app = FastAPI()
 """ 2/7 개선할 사항
 - 현재 같은 이름 파일 이름을 업로드하면 기존 파일을 덮어씀
@@ -71,19 +74,22 @@ async def upload_video(file: UploadFile = File(...)):
     volume_analysis = analyze_volume(audio_path)
 
     # # 비디오 분석 실행 (nonvarvel의 main 함수 역할)
-    # nonverbel_analysis_result = video_nonverbal_analysis(file_path)
-
     absolute_file_path = os.path.abspath(file_path)
     nonverbel_analysis_result = video_nonverbal_analysis(absolute_file_path)
+
+    # 평가 단계
+    speed_score = evaluate_speaking_speed(speaking_speed)
+    volume_score = evaluate_volume(volume_analysis)
 
 
     # 결과 반환
     results = {
         "filename": file.filename,
         "speaking_speed": speaking_speed,
+        "speaking_evaluation" : speed_score,
         "volume_analysis": volume_analysis,
+        "volume_evaluation": volume_score,
         "nonverbal_analysis" : nonverbel_analysis_result
-
     }
 
     logging.info(f" 분석 결과 : {results}")
