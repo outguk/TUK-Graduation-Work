@@ -58,7 +58,9 @@ public class FastApiController {
                         model.addAttribute("message", "파일 업로드 및 분석 성공!");
                         model.addAttribute("analysisFilename", resultMap.get("filename"));
                         model.addAttribute("speakingSpeed", resultMap.get("speaking_speed"));
+                        model.addAttribute("speakingEvaluation", resultMap.get("speaking_evaluation"));
                         model.addAttribute("volumeAnalysis", resultMap.get("volume_analysis"));
+                        model.addAttribute("volumeEvaluation", resultMap.get("volume_evaluation"));
                         model.addAttribute("nonverbalAnalysis", resultMap.get("nonverbal_analysis"));
 
                         // "upload"라는 Thymeleaf 템플릿으로 이동
