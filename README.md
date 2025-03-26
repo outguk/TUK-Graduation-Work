@@ -7,7 +7,7 @@
 
 **1.** GW_backend/src/main/java/TUK-Graduation-Work/GW-backend의 BackendApplication.java를 실행하면 톰캣 서버가 생성됨(bulid.gradle의 java 버전을 본인 컴퓨터 java 버전에 맞춰주어야 함 17 or 23)
 
-**2.** python-AI 디렉토리로 이동 해 main.py를 실행(명령어 -> **uvicorn main:app -reload --host 0.0.0.0 --port 5000**)
+**2.** python-AI 디렉토리로 이동 해 main.py를 실행(명령어 -> **uvicorn main:app --reload --host 0.0.0.0 --port 5000**)
 
 **3.** 이후 localhost:8080에 접속, 업로드만 테스트 시 바로 localhost:8080/upload로 들어가면 됨
 
