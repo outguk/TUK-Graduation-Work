@@ -171,7 +171,7 @@ def evaluate_volume(volume_metrics: dict) -> float:
         
         # 100점에서 감점된 점수를 계산 (최소 0점 보장)
         score = max(100 - penalty, 0)
-        logging.info(f"해당 구간 점수: {score}")
+        # logging.info(f"해당 구간 점수: {score}")
         
         # 현재 구간의 평가 결과를 딕셔너리로 구성하여 리스트에 추가 
         segment_evaluations.append({

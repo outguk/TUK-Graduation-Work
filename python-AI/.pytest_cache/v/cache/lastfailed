@@ -7,7 +7,6 @@
   "tests/tests_vocalization/test_extract_audio.py": true,
   "tests/tests_vocalization/test_pronunciation.py": true,
   "tests/tests_vocalization/test_speech_speed.py": true,
-  "tests/tests_vocalization/test_whisperSTT.py": true,
   "tests/tests_vocalization/test_audio_preprocessing.py::test_extract_audio": true,
   "tests/tests_vocalization/test_audio_preprocessing.py::test_change_sampling_rate": true,
   "tests/tests_vocalization/test_audio_preprocessing.py::test_band_pass_filter": true

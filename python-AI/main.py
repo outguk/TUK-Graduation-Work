@@ -73,9 +73,9 @@ async def upload_video(file: UploadFile = File(...)):
     speaking_speed = analyze_speaking_speed(transcription, audio_path)
     volume_analysis = analyze_volume(audio_path)
 
-    # # 비디오 분석 실행 (nonvarvel의 main 함수 역할)
-    absolute_file_path = os.path.abspath(file_path)
-    nonverbel_analysis_result = video_nonverbal_analysis(absolute_file_path)
+    # 비디오 분석 실행 (nonvarvel의 main 함수 역할)
+    # absolute_file_path = os.path.abspath(file_path)
+    # nonverbel_analysis_result = video_nonverbal_analysis(absolute_file_path)
 
     # 평가 단계
     speed_score = evaluate_speaking_speed(speaking_speed)
@@ -89,7 +89,7 @@ async def upload_video(file: UploadFile = File(...)):
         "speaking_evaluation" : speed_score,
         "volume_analysis": volume_analysis,
         "volume_evaluation": volume_score,
-        "nonverbal_analysis" : nonverbel_analysis_result
+        # "nonverbal_analysis" : nonverbel_analysis_result
     }
 
     logging.info(f" 분석 결과 : {results}")

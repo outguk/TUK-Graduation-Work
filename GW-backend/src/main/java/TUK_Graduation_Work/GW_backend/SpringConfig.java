@@ -6,6 +6,10 @@ import TUK_Graduation_Work.GW_backend.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.server.*;
 
 @Configuration
 public class SpringConfig {
@@ -25,5 +29,16 @@ public class SpringConfig {
         return WebClient.builder()
                 .baseUrl("https://jsonplaceholder.typicode.com")
                 .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> spaRouter() {
+        return RouterFunctions
+                .resources("/**", new ClassPathResource("static/"))
+                .andRoute(RequestPredicates.GET("/**"), request ->
+                        ServerResponse.ok()
+                                .contentType(MediaType.TEXT_HTML)
+                                .body(BodyInserters.fromResource(new ClassPathResource("static/index.html")))
+                );
     }
 }
