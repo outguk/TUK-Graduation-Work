@@ -13,6 +13,14 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+ /**
+     * 변경점
+     * 1. @RestController 사용 RESTful API 응답을 위한 컨트롤러 선언
+     * 2. React는 Json 형식의 데이터를 사용하므로 분석 결과를 Json 형식으로 받아 프론트엔드에 넘겨주도록 변경
+     * 3. 기존 타임리프 템플릿을 통해 UI를 구성하지 않으므로 반환값으로 주소를 반환하지 않고, @GetMapping 부분을 삭제함
+     * 4. @CrossOrigin(origins = "http://localhost:5173")를 통해 프론트엔드에서 요청을 허용하도록 설정
+     */
+
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
 public class FastApiController {

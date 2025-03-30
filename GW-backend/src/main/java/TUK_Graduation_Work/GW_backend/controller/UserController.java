@@ -9,6 +9,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
+ /**
+     * 변경점
+     * 1. @RestController 사용 RESTful API 응답을 위한 컨트롤러 선언
+     * 2. React에서는 Json 형식 데이터를 사용하므로 @ModelAttribute 대신 @RequestBody를 사용
+     * 3. 기존 타임리프 템플릿을 통해 UI를 구성하지 않으므로 반환값으로 주소를 반환하지 않고, @GetMapping 부분을 삭제함
+     * 4. @CrossOrigin(origins = "http://localhost:5173")를 통해 프론트엔드에서 요청을 허용하도록 설정
+     */
+
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 public class UserController {
