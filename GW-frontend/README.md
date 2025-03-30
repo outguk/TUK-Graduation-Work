@@ -14,7 +14,7 @@ React + Vite + TypeScript + MUI 기반으로 구성된 프론트엔드 프로젝
 
 ## 버전 확인
 node -v
-npm -v
+ npm -v
 ```
 
 ---
