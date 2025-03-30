@@ -3,7 +3,7 @@
 
 ## 📦 프로젝트 개요
 
-React + Vite + TypeScript + MUI 기반으로 구성된 프론트엔드 프로젝트. 백엔드는 Spring Boot와 연결되어 있으며, FastAPI 분석 서버도 함께 통신
+React + Vite + TypeScript + MUI 기반으로 구성된 프론트엔드 프로젝트. Spring Boot와 연결되어 있으며, FastAPI 분석 서버도 함께 통신
 
 ---
 
