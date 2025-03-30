@@ -33,7 +33,7 @@ npm install react-router-dom # 프론트엔드에서 페이지 전환을 위해�
 ```
 ---
 
-## 🔄 Vite 프록시 설정 (`vite.config.ts`) 및 정적 리소스 자동 복사 설정
+## 🔄 Vite 프록시 설정 (`vite.config.ts`) 및 정적 리소스 자동 복사 설정(이미 되어있음)
 - vite.config.ts 파일에서 프록시 서버를 생성에 spring과 연동되도록 설정
 ```ts
 server: {
