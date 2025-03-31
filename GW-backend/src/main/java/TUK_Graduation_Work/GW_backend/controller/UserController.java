@@ -21,6 +21,18 @@ public class UserController {
         this.userService = userService;
     }
 
+    // DTO 요청
+    static class UserForm {
+        private String name;
+        private String password;
+        // getter/setter
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    // 회원가입
     @PostMapping("/users/new")
     public String create(@RequestBody UserForm form) {
         User user = new User();
@@ -30,19 +42,19 @@ public class UserController {
         logger.info("member: {}", user.getName());
         logger.info("password: {}", user.getPassword());
 
-        // 회원 가입 전 중복 체크, 암호화 등의 로직 추가 고려
+        // DB 저장
         userService.join(user);
-
-        return "회원가입 성공";
+        return "회원가입 성공 (RDS)";
     }
 
+    // 로그인
     @PostMapping("/users/login")
     public String checkLogin(@RequestBody UserForm form) {
         Optional<User> userOpt = userService.findOne(form.getName());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (form.getPassword().equals(user.getPassword())) {
-                return "로그인 성공";
+                return "로그인 성공 (RDS)";
             }
         }
         return "로그인 실패";

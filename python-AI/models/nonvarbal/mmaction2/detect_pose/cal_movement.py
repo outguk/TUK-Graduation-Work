@@ -19,15 +19,23 @@ def calculate_movement(previous_keypoints, current_keypoints):
     mean_movement = np.mean(movement)
     return mean_movement
 
-def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_threshold=20.0):
-    """JSON 데이터를 읽어서 PKL로 변환 (키포인트 변화량 적용)"""
+def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=20.0):
+    """
+    영상 이름 기반으로 JSON 키포인트를 읽고, PKL 변환
+    - video_filename: 예) 'book'
+    """
+    json_dir = os.path.join("data", "keypoints", video_filename)
+    output_pkl_path = os.path.join(json_dir, "results.pkl")
+
     annotations = []
     split_xsub_val = []
-    normal_behavior_frames = []  # 정상 행동으로 분류된 프레임 리스트
-    movement_values = []  # 모든 프레임의 움직임 변화량 저장 리스트
+    normal_behavior_frames = []
+    movement_values = []
 
-    # 🔹 JSON 파일 정렬하여 가져오기
-    json_files = sorted([f for f in os.listdir(json_dir) if f.endswith('.json')], key=natural_key)
+    json_files = sorted(
+        [f for f in os.listdir(json_dir) if f.endswith('.json')],
+        key=natural_key
+    )
 
     for i in range(0, len(json_files), frames_per_annotation):
         keypoints_list = []
@@ -57,49 +65,33 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
             if original_shape is None:
                 original_shape = data.get("original_shape", (1080, 1920))
 
-        # 🔹 키포인트 변화량 계산
         movement = calculate_movement(np.array(keypoints_list[:-1]), np.array(keypoints_list[1:]))
         movement_values.append(movement)
 
-        # 🔹 움직임이 threshold보다 크면 저장, 작으면 정상 행동으로 분류
         should_save = movement > movement_threshold
 
         if should_save:
-            # ✅ 모델 입력 데이터로 저장
-            keypoints_array = np.expand_dims(np.array(keypoints_list), axis=0)
-            scores_array = np.expand_dims(np.array(scores_list), axis=0)
-
             annotation = {
-                "frame_dir": frame_dirs[0],  # 첫 번째 프레임의 이름 사용
+                "frame_dir": frame_dirs[0],
                 "total_frames": len(keypoints_list),
-                "keypoint": keypoints_array,
-                "keypoint_score": scores_array,
+                "keypoint": np.expand_dims(np.array(keypoints_list), axis=0),
+                "keypoint_score": np.expand_dims(np.array(scores_list), axis=0),
                 "img_shape": img_shape,
                 "original_shape": original_shape,
                 "label": -1
             }
             annotations.append(annotation)
             split_xsub_val.extend(frame_dirs)
-
-            # print(f"\n 저장된 프레임: {frame_dirs[0]} (움직임 변화량: {movement:.2f})")
         else:
             normal_behavior_frames.append(frame_dirs[0])
 
-        # ✅ 디버깅: 프레임별 움직임 변화량 출력
-        print(f"\n 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} (임계값: {movement_threshold}) {' 모델 입력' if should_save else ' 정상 행동'}")
+        print(f"\n 프레임 {frame_dirs[0]} - 변화량: {movement:.2f} → {'모델 입력' if should_save else '정상 행동'}")
 
-    # 🔥 전체 움직임 변화량 분석
-    print("\n 움직임 변화량 분석:")
-    print(f"  ▶ 평균 변화량: {np.mean(movement_values):.2f}")
-    print(f"  ▶ 최소 변화량: {np.min(movement_values):.2f}")
-    print(f"  ▶ 최대 변화량: {np.max(movement_values):.2f}")
-
-    # 🔥 정상 행동으로 분류된 프레임 출력
-    print("\n 정상 행동으로 분류된 프레임들:")
+    print(f"\n 평균 변화량: {np.mean(movement_values):.2f}, 최대: {np.max(movement_values):.2f}, 최소: {np.min(movement_values):.2f}")
+    print("\n 정상 행동 프레임들:")
     for frame in normal_behavior_frames:
-        print(f"  - {frame}")
+        print(" -", frame)
 
-    # 🔹 변환된 데이터 저장
     converted_data = {
         "split": {"xsub_val": split_xsub_val},
         "annotations": annotations
@@ -108,7 +100,15 @@ def json_to_pkl(json_dir, output_pkl_path, frames_per_annotation=10, movement_th
     with open(output_pkl_path, 'wb') as f:
         pickle.dump(converted_data, f)
 
-    print(f"\n PKL file saved at {output_pkl_path}")
+    print(f"\n ✅ 결과 저장 완료: {output_pkl_path}")
 
 # ✅ 실행 (슬라이딩 윈도우 없이 키포인트 변화량 적용)
-json_to_pkl("data/keypoints", "data/keypoints/results.pkl", frames_per_annotation=10, movement_threshold=20.0)
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 2:
+        print("Usage: python cal_movement.py <video_filename (ex: book)>")
+        sys.exit(1)
+
+    video_filename = sys.argv[1]
+    json_to_pkl(video_filename)

@@ -121,8 +121,25 @@ def process_images_central_crop(input_dir, output_dir, model, vis_dir=None):
         
         # print(f"Processed (central crop): {image_path} -> JSON: {json_file}")
 
-# 실행 예시 (중앙 영역 crop 방식) 경로 변경
-input_dir = "data/frames"          # 입력 이미지 디렉토리
-output_dir = "data/keypoints"        # JSON 결과 저장 디렉토리
-vis_dir = "data/visualizations"      # 시각화 이미지 저장 디렉토리
-process_images_central_crop(input_dir, output_dir, model, vis_dir=vis_dir)
+# # 실행 예시 (중앙 영역 crop 방식) 경로 변경
+# input_dir = "data/frames"          # 입력 이미지 디렉토리
+# output_dir = "data/keypoints"        # JSON 결과 저장 디렉토리
+# vis_dir = "data/visualizations"      # 시각화 이미지 저장 디렉토리
+# process_images_central_crop(input_dir, output_dir, model, vis_dir=vis_dir)
+if __name__ == "__main__":
+    import sys
+    import os
+    
+    if len(sys.argv) != 2:
+        print("Usage: python crop_image_keypoints.py <video_filename>")
+        sys.exit(1)
+        
+    # book.mp4 -> book
+    video_filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+
+    # 새로운 경로
+    base_frame_dir = os.path.join("data", "frames", video_filename)
+    base_keypoint_dir = os.path.join("data", "keypoints", video_filename)
+    base_visual_dir = os.path.join("data", "visualizations", video_filename)
+
+    process_images_central_crop(base_frame_dir, base_keypoint_dir, model, vis_dir=base_visual_dir)

@@ -1,6 +1,7 @@
 package TUK_Graduation_Work.GW_backend.controller;
 
 public class UserForm {
+    
     private String name;
     private String password;
 

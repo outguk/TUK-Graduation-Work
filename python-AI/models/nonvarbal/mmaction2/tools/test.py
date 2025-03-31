@@ -98,6 +98,12 @@ def main():
     # load config
     cfg = Config.fromfile(args.config)
     
+    # config 자동 저장 방지
+    cfg.dump_config = False
+    if 'default_hooks' in cfg and 'logger' in cfg.default_hooks:
+        cfg.default_hooks.logger['type'] = 'LoggerHook'
+        cfg.default_hooks.logger['interval'] = 100  # 로그 출력 주기만 유지
+    
     # CLI에서 전달된 --cfg-options를 merge
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)

@@ -15,6 +15,7 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
     MMACTION2_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "mmaction2"))
     DATA_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
     # VIDEOS_DIR = os.path.abspath(os.path.join(DATA_DIR, "videos"))
+    video_file_path = os.path.abspath(video_file_path)
     
     # 작업 디렉토리를 PROJECT_ROOT로 변경
     os.chdir(PROJECT_ROOT)
@@ -24,6 +25,11 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         # 영상 저장 폴더 확인
         if not os.path.exists(video_file_path):
             raise Exception(f"ERROR: {video_file_path} 폴더가 존재하지 않습니다. 영상 파일을 넣어주세요")
+        
+        # 영상 이름 추출: book.mp4 -> book
+        video_name = os.path.splitext(os.path.basename(video_file_path))[0]
+        keypoints_dir = os.path.join(DATA_DIR, "keypoints", video_name)
+        result_pkl_path = os.path.join(keypoints_dir, "results.pkl")
         
         # Step 1: 영상에서 프레임 추출 (extract_frames.py 실행)
         print("\n Step 1: 영상에서 프레임 추출 (extract_frames.py 실행)")
@@ -35,14 +41,14 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         # Step 2: 키포인트 검출 실행 (crop_image_keypoints.py 실행)
         print("\n Step 2: crop_image_keypoints.py 실행")
         subprocess.run(
-            ["python", os.path.join(MMACTION2_DIR, "mmpose", "crop_image_keypoints.py")],
+            ["python", os.path.join(MMACTION2_DIR, "mmpose", "crop_image_keypoints.py"), video_file_path],
             cwd=PROJECT_ROOT, check=True
         )
         
         # Step 3: JSON을 PKL로 변환 (cal_movement.py 실행)
         print("\n Step 3: jsontopkl.py 실행")
         subprocess.run(
-            ["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py")],
+            ["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py"), video_name],
             cwd=PROJECT_ROOT, check=True
         )
         
@@ -52,7 +58,8 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
             "python", "tools/test.py",
             "configs/skeleton/stgcnpp/stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d.py",
             "work_dirs/stgcnpp_8xb16-joint-motion-u100-80e_ntu60-xsub-keypoint-2d/best_acc_top1_epoch_27.pth",
-            "--dump", "../data/test_results.pkl"
+            "--dump", "../data/test_results.pkl",
+            "--cfg-options", f"test_dataloader.dataset.ann_file={result_pkl_path}"
         ]
         subprocess.run(test_command, cwd=MMACTION2_DIR, check=True)
         
@@ -65,10 +72,10 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         import checkresult
 
         result_file = os.path.join(DATA_DIR, "test_results.pkl")
-        keypoints_pkl_file = os.path.join(DATA_DIR, "keypoints/results.pkl")
+        #keypoints_pkl_file = os.path.join(DATA_DIR, "keypoints/results.pkl")
         output_json_file = os.path.join(DATA_DIR, "inference_results.json")
 
-        result = checkresult.main(result_file, keypoints_pkl_file, output_json_file)
+        result = checkresult.main(result_file,result_pkl_path, output_json_file)
         
         
         print("\n모든 과정 완료")
@@ -90,3 +97,4 @@ if __name__ == "__main__":
     )
     analysis_result = video_nonverbal_analysis(sample_video)
     # print("분석 결과:", analysis_result)
+

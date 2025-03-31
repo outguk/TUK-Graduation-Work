@@ -1,6 +1,5 @@
 package TUK_Graduation_Work.GW_backend;
 
-import TUK_Graduation_Work.GW_backend.repository.MemoryUserRepository;
 import TUK_Graduation_Work.GW_backend.repository.UserRepository;
 import TUK_Graduation_Work.GW_backend.service.UserService;
 import org.springframework.context.annotation.Bean;
@@ -14,16 +13,13 @@ import org.springframework.web.reactive.function.server.*;
 @Configuration
 public class SpringConfig {
 
+    // 만약 UserService에 대한 Bean 등록을 수동으로 하려면:
     @Bean
-    public UserService userService(){
-        return new UserService(userRepository());
+    public UserService userService(UserRepository userRepository) {
+        return new UserService(userRepository);
     }
 
-    @Bean
-    public UserRepository userRepository(){
-        return new MemoryUserRepository();
-    }
-
+    // WebClient
     @Bean
     public WebClient webClient() {
         return WebClient.builder()
@@ -31,6 +27,7 @@ public class SpringConfig {
                 .build();
     }
 
+    // SPA 라우팅 Fallback
     @Bean
     public RouterFunction<ServerResponse> spaRouter() {
         return RouterFunctions

@@ -2,43 +2,29 @@ package TUK_Graduation_Work.GW_backend.service;
 
 import TUK_Graduation_Work.GW_backend.domain.User;
 import TUK_Graduation_Work.GW_backend.repository.UserRepository;
-import TUK_Graduation_Work.GW_backend.repository.MemoryUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
+@Service
 public class UserService {
+
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository){
+    @Autowired
+    public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
-    // 회원 가입
-    public String join(User user){
-        // 같은 이름 중복 회원 금지
-        validateDuplicateMember(user); //
-
+    // 회원가입 로직
+    public void join(User user) {
+        // 예: 중복 이름 체크, 암호화 등
         userRepository.save(user);
-        return user.getName();
     }
 
-    private void validateDuplicateMember(User user) {
-        userRepository.findByName(user.getName())
-                .ifPresent(m -> {
-                    throw new IllegalStateException("이미 존재하는 회원입니다.");
-                });
+    // 사용자 조회
+    public Optional<User> findOne(String name) {
+        return userRepository.findByName(name);
     }
-
-    // 전체 회원 조회
-    public List<User> findUsers(){
-        return userRepository.findAll();
-    }
-
-    public Optional<User> findOne(String userName) {
-        return userRepository.findByName(userName);
-    }
-
 }

@@ -15,3 +15,11 @@
 
 - 통합 시 중요한 것은 python-AI의 main.py함수에서 @app.post("/upload-video/") 부분을 보면 웹에서 업로드된 영상을 file_path 경로에 저장하고 있으며 비디오 분석 실행 부분에서 이 경로(file_path)를 기준으로 분석을 실행하도록 해야 함.
 - 분석 시 생성되는 영상의 프레임, 키포인트나 visuailization의 경로는 굳이 바꿀 필요 없을듯
+
+
+- mongodb + aws rds
+pip install motor
+pip install sqlalchemy pymysql python-dotenv
+
+
+
