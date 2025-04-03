@@ -93,6 +93,7 @@ npm run build
   - 기존 로그인 페이지였던 HomPage.tsx를 서비스 소개 페이지로 변경하고, 로그인 페이지를 SignInPage로 따로 만듬. 홈페이지의 분석 시작 버튼을 누르면 로그인 페이지로 이동
   **- 현재 자동 설치된 react 버전이 19.x 버전에 MUI 버전이 7.X 버전이었는데 안정성 문제로 디자인에서 오류가 자주 발생해서 react와 MUI 버전을 다운그레이드 함**
   - ![image](https://github.com/user-attachments/assets/387dc1ba-3d48-43f5-859c-029cce229692)
+    
   **- 위 이미지처럼 버전을 변경해주어야 홈페이지 디자인이 잘 적용됨**
 
 
