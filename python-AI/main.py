@@ -99,13 +99,15 @@ async def upload_video(file: UploadFile = File(...)):
     # 음성 텍스트 변환 (STT)
     transcription = await transcribe_audio(audio_path)
 
-    # 음성 분석
-    speaking_speed = analyze_speaking_speed(transcription, audio_path)
-    volume_analysis = analyze_volume(audio_path)
+    # 3. 말하기 속도 + 음량 분석은 CPU 분석이므로 병렬 실행
+    loop = asyncio.get_running_loop()
+    speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription, audio_path)
+    volume_task = loop.run_in_executor(None, analyze_volume, audio_path)
+    speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
 
     # 비언어 분석
     absolute_file_path = os.path.abspath(file_path)
-    nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
+    # nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
 
     # 평가
     speed_score = evaluate_speaking_speed(speaking_speed)
@@ -118,7 +120,7 @@ async def upload_video(file: UploadFile = File(...)):
         "speaking_evaluation": speed_score,
         "volume_analysis": volume_analysis,
         "volume_evaluation": volume_score,
-        "nonverbal_analysis": nonverbal_analysis
+        # "nonverbal_analysis": nonverbal_analysis
     }
     inserted = await collection.insert_one(document)
     logging.info(f"분석 결과 MongoDB에 저장함: ID={inserted.inserted_id}")
