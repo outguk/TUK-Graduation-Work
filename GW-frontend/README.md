@@ -59,7 +59,6 @@ viteStaticCopy({
 ```bash
 npm run build
 ```
-- 빌드 시 Spring Boot의 static에 React 정적 리소스 파일인 dist가 자동 복사됨
 ---
 - 빌드 시 Spring Boot의 static에 React 정적 리소스 파일인 dist 밑의 파일들이 자동 복사됨(Spring과 연결)
 
