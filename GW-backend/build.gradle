@@ -48,6 +48,7 @@ dependencies {
 	implementation 'com.mysql:mysql-connector-j'
 	implementation 'mysql:mysql-connector-java:8.0.33'
 
+
 	implementation "jakarta.servlet:jakarta.servlet-api:6.1.0"
 
 }
