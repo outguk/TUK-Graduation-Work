@@ -17,7 +17,10 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
+// 분석 결과 타입 정의
 type AnalysisResult = {
+  _id: string;
+  user_id: number;
   filename: string;
   speaking_speed?: any;
   volume_analysis?: any;
@@ -40,6 +43,7 @@ const UploadPage: React.FC = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 파일 업로드
   const handleUpload = async () => {
     if (!file) return;
 
@@ -50,10 +54,12 @@ const UploadPage: React.FC = () => {
     setError(null);
 
     try {
+      // '/upload' → Spring → FastAPI
       const response = await axios.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       console.log("📦 분석 응답:", response.data);
+      // 방금 업로드한 영상 결과만 result에 저장
       setResult(response.data);
     } catch (e: any) {
       setError("업로드 또는 분석 중 오류가 발생했습니다.");
@@ -110,10 +116,11 @@ const UploadPage: React.FC = () => {
         )}
       </Box>
 
+      {/* 업로드가 완료되면 result에 단건 결과 표시 */}
       {result && (
         <Box mt={6}>
           <Typography variant="h5" gutterBottom align="center">
-            분석 결과
+            분석 결과 (최근 업로드 파일)
           </Typography>
 
           <Box mt={3} sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2 }}>
@@ -175,8 +182,8 @@ const UploadPage: React.FC = () => {
                               ))}
                             </ul>
                           ) : (
-                            '-')
-                          }
+                            '-'
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

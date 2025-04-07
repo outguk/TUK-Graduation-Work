@@ -11,22 +11,22 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const SignUpPage: React.FC = () => {
+const SignInPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 스프링에 /users/new POST → { username, password } 전송
-      const response = await axios.post('/users/new', { username, password });
+      // 스프링에 /users/login POST → { username, password } 전송
+      const response = await axios.post('/users/login', { username, password });
       if (response.status === 200) {
-        navigate('/');
+        navigate('/upload');
       }
     } catch (err) {
-      setError('회원가입 중 오류가 발생했습니다.');
+      setError('로그인 실패! username 또는 비밀번호를 확인해주세요.');
     }
   };
 
@@ -43,13 +43,15 @@ const SignUpPage: React.FC = () => {
         }}
       >
         <Typography variant="h4" gutterBottom align="center" color="primary">
-          회원 가입
+          Hello TUK
         </Typography>
-        <Box component="form" onSubmit={handleSignUp} noValidate role="form" sx={{ mt: 3 }}>
+        <Typography variant="subtitle1" align="center" color="text.secondary">
+          회원 기능
+        </Typography>
+        <Box component="form" onSubmit={handleLogin} noValidate role="form" sx={{ mt: 3 }}>
           <Stack spacing={2}>
             <TextField
               label="아이디"
-              variant="outlined"
               fullWidth
               required
               value={username}
@@ -58,7 +60,6 @@ const SignUpPage: React.FC = () => {
             />
             <TextField
               label="비밀번호"
-              variant="outlined"
               fullWidth
               required
               type="password"
@@ -66,8 +67,8 @@ const SignUpPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               inputProps={{ 'aria-label': '비밀번호 입력' }}
             />
-            <Button type="submit" fullWidth variant="contained" size="large" aria-label="회원가입 등록">
-              등록
+            <Button type="submit" fullWidth variant="contained" size="large" aria-label="로그인">
+              로그인
             </Button>
           </Stack>
         </Box>
@@ -77,8 +78,11 @@ const SignUpPage: React.FC = () => {
           </Typography>
         )}
         <Box textAlign="center" mt={3}>
-          <MuiLink href="/" underline="hover" aria-label="홈으로 돌아가기">
-            돌아가기
+          <MuiLink href="/signup" underline="hover" sx={{ mx: 1 }} aria-label="회원 가입 페이지로 이동">
+            회원 가입
+          </MuiLink>
+          <MuiLink href="/users" underline="hover" sx={{ mx: 1 }} aria-label="회원 목록 페이지로 이동">
+            회원 목록
           </MuiLink>
         </Box>
       </Box>
@@ -86,4 +90,4 @@ const SignUpPage: React.FC = () => {
   );
 };
 
-export default SignUpPage;
+export default SignInPage;

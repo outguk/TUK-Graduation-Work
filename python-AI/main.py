@@ -78,8 +78,8 @@ def cleanup_intermediate_files(video_name: str):
 # ========== 기존 업로드 + 분석 + MongoDB 저장 ==========
 
 @app.post("/upload-video/")
-async def upload_video(file: UploadFile = File(...)):
-    logging.info(f"📂 업로드된 파일: {file.filename}, Content-Type: {file.content_type}")
+async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., description="사용자 ID")):
+    logging.info(f"📂 업로드된 파일: {file.filename}, Content-Type: {file.content_type}, user_id: {user_id}")
 
     # 파일 확장자 검증
     if not file.filename.endswith(".mp4"):
@@ -99,9 +99,11 @@ async def upload_video(file: UploadFile = File(...)):
     # 음성 텍스트 변환 (STT)
     transcription = await transcribe_audio(audio_path)
 
-    # 음성 분석
-    speaking_speed = analyze_speaking_speed(transcription, audio_path)
-    volume_analysis = analyze_volume(audio_path)
+    # 3. 말하기 속도 + 음량 분석은 CPU 분석이므로 병렬 실행
+    loop = asyncio.get_running_loop()
+    speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription, audio_path)
+    volume_task = loop.run_in_executor(None, analyze_volume, audio_path)
+    speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
 
     # 비언어 분석
     absolute_file_path = os.path.abspath(file_path)
@@ -113,6 +115,7 @@ async def upload_video(file: UploadFile = File(...)):
 
     # MongoDB 저장 (분석 결과 문서)
     document = {
+        "user_id": user_id,
         "filename": file.filename,
         "speaking_speed": speaking_speed,
         "speaking_evaluation": speed_score,
@@ -126,8 +129,9 @@ async def upload_video(file: UploadFile = File(...)):
     # 임시 파일/폴더 정리
     video_name = os.path.splitext(file.filename)[0]  # e.g. "book"
     cleanup_intermediate_files(video_name)
-
-    return {"message": "분석 완료", "id": str(inserted.inserted_id)}
+    
+    document["_id"] = str(inserted.inserted_id)  # ObjectId → 문자열 변환
+    return document
 
 
 @app.get("/get-analysis/")
@@ -139,11 +143,21 @@ async def get_analysis(filename: str = Query(..., description="업로드된 파�
     return document
 
 
+@app.get("/analysis-by-user/")
+async def get_analysis_by_user(user_id: int = Query(..., description="사용자 ID")):
+    """특정 user_id에 해당하는 분석 결과를 조회한다."""
+    cursor = collection.find({"user_id": user_id})
+    results = []
+    async for doc in cursor:
+        doc["_id"] = str(doc["_id"])  # ObjectId → 문자열 변환
+        results.append(doc)
+    return {"analyses": results}
+
 # ========== RDS 사용자 관리 ==========
 
 # Pydantic 스키마
 class UserCreate(BaseModel):
-    name: str
+    username: str
     #email: EmailStr
     password: str
 
@@ -159,13 +173,13 @@ def get_db():
 def register_user(user_in: UserCreate, db=Depends(get_db)):
     # username or email 중복 체크
     existing = db.query(User).filter(
-        (User.name == user_in.name) #| (User.email == user_in.email)
+        (User.username == user_in.username) #| (User.email == user_in.email)
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username or Email already exists.")
 
     new_user = User(
-        name=user_in.name,
+        username=user_in.username,
         #email=user_in.email,
         password=user_in.password  # 실제로는 bcrypt 등으로 해싱 권장
     )
@@ -175,7 +189,7 @@ def register_user(user_in: UserCreate, db=Depends(get_db)):
 
     return {
         "id": new_user.id,
-        "username": new_user.name,
+        "username": new_user.username,
         #"email": new_user.email
     }
 
@@ -186,7 +200,7 @@ def get_user_rds(user_id: int, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found in RDS")
     return {
         "id": user.id,
-        "name": user.name,
+        "username": user.username,
         #"email": user.email
     }
 

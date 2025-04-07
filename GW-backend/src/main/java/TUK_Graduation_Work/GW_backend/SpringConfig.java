@@ -1,7 +1,5 @@
 package TUK_Graduation_Work.GW_backend;
 
-import TUK_Graduation_Work.GW_backend.repository.UserRepository;
-import TUK_Graduation_Work.GW_backend.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,13 +11,17 @@ import org.springframework.web.reactive.function.server.*;
 @Configuration
 public class SpringConfig {
 
-    // 만약 UserService에 대한 Bean 등록을 수동으로 하려면:
+    // Spring Data JPA를 사용하면, UserRepository와 UserService는
+    // 각각 @Repository와 @Service 어노테이션으로 자동 등록되므로 수동 Bean 등록은 필요 없습니다.
+    // 만약 수동 등록을 원한다면 아래와 같이 주입할 수 있습니다.
+    /*
     @Bean
     public UserService userService(UserRepository userRepository) {
         return new UserService(userRepository);
     }
+    */
 
-    // WebClient
+    // WebClient 설정 (필요에 따라 baseUrl 수정)
     @Bean
     public WebClient webClient() {
         return WebClient.builder()
