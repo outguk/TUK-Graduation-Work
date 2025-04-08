@@ -8,6 +8,7 @@ import json
 import logging
 import shutil
 import glob
+import re
 
 # ===== 기존 AI 분석 + MongoDB =====
 from models.vocalization.vocalization_analysis import (
@@ -21,6 +22,16 @@ from models.vocalization.vocalization_evaluate import (
     evaluate_speaking_speed,
     evaluate_volume
 )
+from models.script.script_feedback_korcen import (
+    load_custom_badwords,
+    analyze_script,
+    evaluate_length,
+    print_results  # 또는 따로 결과 dict 반환 함수 만들어도 좋아요
+)
+from konlpy.tag import Okt, Kkma
+
+
+
 from mongodb import collection  # MongoDB 연결
 
 # ===== RDS + SQLAlchemy =====
@@ -99,6 +110,35 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
     # 음성 텍스트 변환 (STT)
     transcription = await transcribe_audio(audio_path)
 
+
+
+    # 대본 분석
+    #===================================================================
+    script_txt_path = os.path.join(BASE_DIR, "output_transcription.txt")
+    if not os.path.exists(script_txt_path):
+        raise HTTPException(status_code=500, detail="output_transcription.txt 파일 없음음")
+
+    with open(script_txt_path, encoding="utf-8") as f:
+        text = f.read()
+    sentences = [s.strip() for s in re.split(r'[.!?\n]', text) if s.strip()]
+
+    tagger = Okt()
+    kkma = Kkma()
+
+    # 사용자 정의 비속어
+    badwords_path = os.path.join(BASE_DIR, "custom_profanities.txt")
+    custom_badwords = load_custom_badwords(badwords_path)
+
+    # 대본 분석
+    script_stats = analyze_script(sentences, tagger, kkma, custom_badwords)
+    actual_chars, min_chars, max_chars, length_feedback = evaluate_length(text, speech_minutes=3)  # 예: 3분
+
+    # print_results(script_stats, speech_minutes=3, actual_chars=actual_chars, min_chars=min_chars, max_chars=max_chars, length_feedback=length_feedback)
+    #===================================================================
+
+
+
+
     # 3. 말하기 속도 + 음량 분석은 CPU 분석이므로 병렬 실행
     loop = asyncio.get_running_loop()
     speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription, audio_path)
@@ -107,7 +147,7 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
 
     # 비언어 분석
     absolute_file_path = os.path.abspath(file_path)
-    # nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
+    nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
 
     # 평가
     speed_score = evaluate_speaking_speed(speaking_speed)
@@ -121,7 +161,23 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
         "speaking_evaluation": speed_score,
         "volume_analysis": volume_analysis,
         "volume_evaluation": volume_score,
-        # "nonverbal_analysis": nonverbal_analysis
+        "nonverbal_analysis": nonverbal_analysis,
+        "script_analysis": {
+            "length": actual_chars,
+            "length_feedback": length_feedback,
+            "min_length": min_chars,
+            "max_length": max_chars,
+            "non_honorific_count": script_stats["non_honorific_count"],
+            "uncertainty_count": script_stats["uncertainty_count"],
+            "subject_verb_mismatch_count": script_stats["subject_verb_mismatch_count"],
+            "profanity_count": script_stats["profanity_count"],
+            "non_honorific_examples": script_stats["non_honorific_examples"],
+            "uncertainty_examples": script_stats["uncertainty_examples"],
+            "subject_verb_examples": script_stats["subject_verb_examples"],
+            "profanity_examples": script_stats["profanity_examples"],
+            "otas_detected": script_stats["otas_detected"]
+        }
+
     }
     inserted = await collection.insert_one(document)
     logging.info(f"분석 결과 MongoDB에 저장함: ID={inserted.inserted_id}")
@@ -131,6 +187,7 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
     cleanup_intermediate_files(video_name)
     
     document["_id"] = str(inserted.inserted_id)  # ObjectId → 문자열 변환
+    print(f"업로드된 파일: {file.filename}, 분석 결과: {document}")
     return document
 
 
@@ -203,6 +260,9 @@ def get_user_rds(user_id: int, db=Depends(get_db)):
         "username": user.username,
         #"email": user.email
     }
+
+
+
 
 
 # ===== FastAPI 실행 =====
