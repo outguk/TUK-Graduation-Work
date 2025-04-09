@@ -107,7 +107,7 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
 
     # 비언어 분석
     absolute_file_path = os.path.abspath(file_path)
-    # nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
+    nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
 
     # 평가
     speed_score = evaluate_speaking_speed(speaking_speed)
@@ -121,7 +121,7 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Query(..., d
         "speaking_evaluation": speed_score,
         "volume_analysis": volume_analysis,
         "volume_evaluation": volume_score,
-        # "nonverbal_analysis": nonverbal_analysis
+        "nonverbal_analysis": nonverbal_analysis
     }
     inserted = await collection.insert_one(document)
     logging.info(f"분석 결과 MongoDB에 저장함: ID={inserted.inserted_id}")
