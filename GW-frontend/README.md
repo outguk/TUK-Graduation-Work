@@ -131,3 +131,21 @@ npm run build
 ## ✅ 유의 사항
 - 새로 추가한 부분들은 이해를 위해 주석을 달아놓았으니 코드 주석을 반드시 읽어볼 필요가 있음. 모르는 부분이 있으면 물어봐야 함. 코드가 매우 길지만 대부분 디자인 관련 코드라 실제 백엔드 연결할 부분이 엄청 많지는 않을듯
 - 백엔드는 db 부분 삭제해서 업데이트 된거라 따로 건드린거 없음
+
+# 4/14 업데이트
+
+## 변경 사항
+1. MainPage 디자인 변경
+2. component에 mockAnalysisData.ts를 통해 실제 분석 결과와 동일한 목업 데이터를 생성. 이를 바탕으로 서비스가 돌아가도록 함
+3. PresentationSidebar.tsx를 통해 AnalysisDashboardPage에 대시보드를 만들어 지난 발표를 쉽게 볼 수 있도록 함
+
+### 1. AnalysisDashboardPage.tsx
+- 왼쪽에 대시보드를 삽입해 지난 발표에 대한 분석을 볼 수 있도록 변경.
+- mockAnalysisData.ts의 데이터를 받아와 각 분석 결과에 대한 전체 요약 결과를 볼 수 있도록 코드 변경
+
+### 2. SpeechEvaluationDetailPage.tsx
+- 대시보드에서 상세 보기를 누르면 해당 분석에 대한 평가 결과가 나오도록 수정
+
+### 3. NonverbalEvaluationDetailPage.tsx
+- 비언어 평가 페이지 추가. 현재는 mockAnalysisData.ts의 데이터가 아닌 자체 데이터로 구성되게 해놓았으며 실제 영상을 가져오는 부분에 오류가 많이 떠서 일단은 타임라인 바를 누르면 해당 구간의 첫 부분에 대한 썸네일이 나오도록 설정
+- 추후 실제 분석 데이터를 이용해 페이지 구성해야 함
