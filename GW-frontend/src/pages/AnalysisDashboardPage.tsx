@@ -198,6 +198,14 @@ const AnalysisDashboardPage: React.FC = () => {
         background: '#FFFFFF',
       }}
     >
+      {/* 
+       * 백엔드 개발자 참고사항:
+       * 사이드바 컴포넌트에는 다음 props를 전달합니다:
+       * - presentations: 발표 목록 배열 - API에서 가져온 데이터로 대체해야 함
+       * - selectedPresentationId: 현재 선택된 발표 ID
+       * - onSelectPresentation: 발표 선택 핸들러 함수
+       * - userProfile: 사용자 정보 객체 - API에서 가져온 사용자 데이터로 대체해야 함
+       */}
       {/* Sidebar component with presentations */}
       <PresentationSidebar
         presentations={mockPresentations}
@@ -246,6 +254,14 @@ const AnalysisDashboardPage: React.FC = () => {
             <Grid container spacing={4}>
               {/* Left column: Summary + Tips */}
               <Grid item xs={12} md={3}>
+                {/* 
+                 * 백엔드 개발자 참고사항:
+                 * Summary 카드에 표시되는 정보:
+                 * - duration: 발표 길이 (예: "0:45")
+                 * - overallScore: 전체 평가 점수 (0-100)
+                 *
+                 * 이 데이터는 API 응답에서 제공되어야 합니다.
+                 */}
                 {/* Summary card */}
                 <Card 
                   elevation={0}
@@ -564,6 +580,11 @@ const AnalysisDashboardPage: React.FC = () => {
                   </Typography>
                 </Paper>
                 
+                {/* 
+                 * 백엔드 개발자 참고사항:
+                 * Volume 차트는 시간에 따른 음량(dB) 변화를 표시합니다.
+                 * volumeData 배열은 { time: string, db: number } 형식의 객체 배열이어야 합니다.
+                 */}
                 {/* Volume chart */}
                 <Paper 
                   elevation={0}
@@ -638,6 +659,11 @@ const AnalysisDashboardPage: React.FC = () => {
                 </Paper>
               </Grid>
               
+              {/* 
+                 * 백엔드 개발자 참고사항:
+                 * 여기에는 다른 세부 분석 페이지로 이동하는 카드들이 있습니다.
+                 * 각 카드는 클릭하면 해당 분석 페이지로 이동합니다.
+                 */}
               {/* Right column: Detail links */}
               <Grid item xs={12} md={3}>
                 {/* Script analysis card */}
@@ -734,6 +760,14 @@ const AnalysisDashboardPage: React.FC = () => {
                 </Card>
                 
                 {/* Nonverbal analysis card */}
+                {/* 
+                 * 백엔드 개발자 참고사항:
+                 * 비언어적 분석(자세, 제스처 등) 페이지로 이동하는 카드입니다.
+                 * 클릭하면 /analysis/nonverbal/{presentationId} 페이지로 이동합니다.
+                 * 
+                 * 해당 페이지에서는 nonverbal_analysis 데이터를 사용합니다.
+                 * /api/presentations/{id}/nonverbal 에서 데이터를 제공해야 합니다.
+                 */}
                 <Card 
                   elevation={0}
                   sx={{ 

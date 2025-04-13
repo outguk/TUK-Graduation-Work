@@ -3,10 +3,19 @@
  * 
  * 설명: 발표 분석의 비언어적 요소 세부 결과 페이지
  * 
+ * URL 파라미터:
+ * - presentationId: 발표 ID (optional, 없으면 가장 최근 발표 분석 표시)
+ * 
+ * 백엔드 API 연동 포인트:
+ * - GET /api/presentations/{presentationId}/nonverbal
+ *   : 특정 발표의 비언어적 분석 데이터 조회
+ * 
  * 기능:
  * 1. 타임라인 기반 비디오 세그먼트 표시 및 상호작용
  * 2. 비언어적 행동 카테고리별 발생 빈도 차트
  * 3. 선택된 구간의 비언어적 행동 피드백 표시
+ * 
+ * 응답 형식은 mongoDB의 nonverbal_analysis형식과 동일
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -34,7 +43,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowBack as ArrowBackIcon,
   Info as InfoIcon,
@@ -43,37 +52,33 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+
+
+/**
+ * 백엔드 데이터 모델과 일치하는 타입 정의
+ * 
+ * NonverbalSegment: 
+ * - 비언어적 분석 결과의 각 시간 구간 데이터
+ * - sample_number: 샘플 번호 (1부터 시작)
+ * - time_range: 시간 범위 (예: "0.00s - 1.00s")
+ * - is_normal: 정상 행동 여부
+ * - top_classes: 감지된 행동 클래스와 확률
+ * 
+ * 백엔드 개발자 참고:
+ * - is_normal이 false인 경우 top_classes 배열에 감지된 행동 정보가 필요함
+ * - top_classes[0]는 가장 높은 확률의 행동이어야 함
+ */
+
+// Import mock data
+import { 
+  mockAnalysisDataMap, 
+  PresentationAnalysis,
+  NonverbalSegment
+} from '../components/mockAnalysisData';
 
 /**
  * 데이터 타입 정의
  */
-// 분석된 비언어적 행동 클래스 (예: "자세(비스듬히)")
-interface BehaviorClass {
-  class: string;
-  probability: number;
-}
-
-// 비언어적 분석 결과의 시간 구간 단위 - 실제 API 응답 구조에 맞게 수정
-interface NonverbalSegment {
-  sample_number: number;
-  time_range: string;
-  frame_range: string;
-  frame_dir: string;
-  is_normal: boolean;
-  wrist_distance: number;
-  top_classes: BehaviorClass[];
-}
-
-// 비언어적 분석 데이터 타입 - 배열로 수정
-type NonverbalAnalysisData = NonverbalSegment[];
-
-// 비언어적 분석 API 응답 타입
-interface NonverbalAnalysisResult {
-  nonverbal_analysis: NonverbalAnalysisData;
-  message?: string;
-}
-
 // 행동 카테고리 발생 빈도 타입
 interface CategoryCount {
   category: string;
@@ -108,8 +113,12 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const timelineRef = useRef<HTMLDivElement>(null);
   
+  // URL 파라미터에서 presentationId 추출
+  const { presentationId } = useParams<{ presentationId?: string }>();
+  
   // 상태 관리
-  const [analysisData, setAnalysisData] = useState<NonverbalAnalysisData | null>(null);
+  const [presentation, setPresentation] = useState<PresentationAnalysis | null>(null);
+  const [analysisData, setAnalysisData] = useState<NonverbalSegment[] | null>(null);
   const [categoryCountData, setCategoryCountData] = useState<CategoryCount[]>([]);
   const [selectedSegmentIndex, setSelectedSegmentIndex] = useState<number | null>(null);
   const [selectedBehavior, setSelectedBehavior] = useState<string>("");
@@ -143,199 +152,81 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
   };
 
   /**
-   * 백엔드 API에서 비언어적 분석 데이터 가져오기
-   * 
-   * API 엔드포인트: /api/analysis/nonverbal
-   * 응답 형식: NonverbalAnalysisResult 타입 (nonverbal_analysis 필드 포함)
-   */
+ * 백엔드 API 호출 구현 필요
+ * 
+ * 현재는 mockAnalysisDataMap에서 데이터를 가져오지만,
+ * 실제 구현 시 아래 API를 호출해야 함:
+ * 
+ * GET /api/presentations/{presentationId}/nonverbal
+ * 
+ * 백엔드 개발자 참고:
+ * 1. presentationId가 URL 파라미터로 전달됨
+ * 2. 응답은 NonverbalAnalysisResult 타입과 일치해야 함
+ * 3. 에러 처리를 위한 적절한 HTTP 상태 코드 반환 필요
+ *    - 404: 발표를 찾을 수 없음
+ *    - 403: 접근 권한 없음
+ *    - 500: 서버 오류
+ * 
+ * 현재는 mockAnalysisDataMap에서 발표 ID에 해당하는 비언어적 분석 데이터 가져옴
+ */
   useEffect(() => {
     const fetchNonverbalData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        // 실제 API 호출 코드 (주석 해제하여 사용)
-        // const response = await axios.get<NonverbalAnalysisResult>('/api/analysis/nonverbal');
-        // setAnalysisData(response.data.nonverbal_analysis);
+      // 실제 API 호출 코드로 대체 필요
+      // const response = await axios.get<NonverbalAnalysisResult>(
+      //   `/api/presentations/${presentationId}/nonverbal`
+      // );
+      // setPresentation(response.data.presentation);
+      // setAnalysisData(response.data.nonverbal_analysis);
+      
+    // 목업 데이터 (백엔드 개발 완료 후 제거)  
+        // 발표 ID에 해당하는 데이터 가져오기
+        let selectedPresentation: PresentationAnalysis | null = null;
         
-        // 개발 테스트를 위한 예시 데이터 - 실제 API 구조에 맞게 수정
-        setTimeout(() => {
-          const mockData: NonverbalAnalysisResult = {
-            nonverbal_analysis: [
-              {
-                sample_number: 1,
-                time_range: "0.00s - 1.00s",
-                frame_range: "0 - 9",
-                frame_dir: "frame_0",
-                is_normal: false,
-                wrist_distance: 133.73,
-                top_classes: [
-                  { class: "자세(비스듬히)", probability: 100 },
-                  { class: "자세(고개돌림)", probability: 0 },
-                  { class: "손동작(얼굴)", probability: 0 }
-                ]
-              },
-              {
-                sample_number: 2,
-                time_range: "1.00s - 2.00s",
-                frame_range: "10 - 19",
-                frame_dir: "frame_1",
-                is_normal: false,
-                wrist_distance: 145.21,
-                top_classes: [
-                  { class: "손동작(머리)", probability: 85 },
-                  { class: "자세(비스듬히)", probability: 10 },
-                  { class: "머리동작(숙이기)", probability: 5 }
-                ]
-              },
-              {
-                sample_number: 3,
-                time_range: "2.00s - 3.00s",
-                frame_range: "20 - 29",
-                frame_dir: "frame_2",
-                is_normal: true,
-                wrist_distance: 120.54,
-                top_classes: [
-                  { class: "정상", probability: 92 }
-                ]
-              },
-              {
-                sample_number: 4,
-                time_range: "3.00s - 4.00s",
-                frame_range: "30 - 39",
-                frame_dir: "frame_3",
-                is_normal: false,
-                wrist_distance: 139.87,
-                top_classes: [
-                  { class: "머리동작(좌우흔들기)", probability: 78 },
-                  { class: "손동작(얼굴)", probability: 15 },
-                  { class: "자세(비비꼬기)", probability: 7 }
-                ]
-              },
-              {
-                sample_number: 5,
-                time_range: "4.00s - 5.00s",
-                frame_range: "40 - 49",
-                frame_dir: "frame_4",
-                is_normal: true,
-                wrist_distance: 125.32,
-                top_classes: [
-                  { class: "정상", probability: 94 }
-                ]
-              },
-              {
-                sample_number: 6,
-                time_range: "5.00s - 6.00s",
-                frame_range: "50 - 59",
-                frame_dir: "frame_5",
-                is_normal: false,
-                wrist_distance: 131.45,
-                top_classes: [
-                  { class: "팔동작(무의미반동)", probability: 82 },
-                  { class: "머리동작(고개흔들기)", probability: 12 },
-                  { class: "손동작(몸긁기)", probability: 6 }
-                ]
-              },
-              {
-                sample_number: 7,
-                time_range: "6.00s - 7.00s",
-                frame_range: "60 - 69",
-                frame_dir: "frame_6",
-                is_normal: false,
-                wrist_distance: 147.63,
-                top_classes: [
-                  { class: "자세(비비꼬기)", probability: 75 },
-                  { class: "손동작(몸긁기)", probability: 20 },
-                  { class: "머리동작(숙이기)", probability: 5 }
-                ]
-              },
-              {
-                sample_number: 8,
-                time_range: "7.00s - 8.00s",
-                frame_range: "70 - 79",
-                frame_dir: "frame_7",
-                is_normal: true,
-                wrist_distance: 122.18,
-                top_classes: [
-                  { class: "정상", probability: 96 }
-                ]
-              },
-              {
-                sample_number: 9,
-                time_range: "8.00s - 9.00s",
-                frame_range: "80 - 89",
-                frame_dir: "frame_8",
-                is_normal: false,
-                wrist_distance: 135.67,
-                top_classes: [
-                  { class: "손동작(얼굴)", probability: 88 },
-                  { class: "팔동작(뒷짐)", probability: 8 },
-                  { class: "머리동작(좌우흔들기)", probability: 4 }
-                ]
-              },
-              {
-                sample_number: 10,
-                time_range: "9.00s - 10.00s",
-                frame_range: "90 - 99",
-                frame_dir: "frame_9",
-                is_normal: true,
-                wrist_distance: 118.93,
-                top_classes: [
-                  { class: "정상", probability: 91 }
-                ]
-              },
-              {
-                sample_number: 11,
-                time_range: "10.00s - 11.00s",
-                frame_range: "100 - 109",
-                frame_dir: "frame_10",
-                is_normal: false,
-                wrist_distance: 142.52,
-                top_classes: [
-                  { class: "팔동작(무의미반동)", probability: 79 },
-                  { class: "자세(비스듬히)", probability: 15 },
-                  { class: "손동작(머리)", probability: 6 }
-                ]
-              },
-              {
-                sample_number: 12,
-                time_range: "11.00s - 12.00s",
-                frame_range: "110 - 119",
-                frame_dir: "frame_11",
-                is_normal: true,
-                wrist_distance: 119.34,
-                top_classes: [
-                  { class: "정상", probability: 97 }
-                ]
-              }
-            ],
-            message: "비언어적 행동 분석이 완료되었습니다."
-          };
-          
-          setAnalysisData(mockData.nonverbal_analysis);
-          processAnalysisData(mockData.nonverbal_analysis);
-        }, 1000);
-      } catch (err) {
-        if (axios.isAxiosError(err) && err.response) {
-          setError(`데이터를 불러오는 중 오류가 발생했습니다: ${err.response.status}`);
+        if (presentationId && mockAnalysisDataMap[presentationId]) {
+          // ID에 해당하는 발표 데이터 가져오기
+          selectedPresentation = mockAnalysisDataMap[presentationId];
         } else {
-          setError('데이터를 불러오는 중 오류가 발생했습니다.');
+          // ID가 없거나 해당하는 발표가 없으면 첫 번째 발표 데이터 사용
+          const firstPresentationId = Object.keys(mockAnalysisDataMap)[0];
+          selectedPresentation = mockAnalysisDataMap[firstPresentationId];
         }
+        
+        if (selectedPresentation) {
+          setPresentation(selectedPresentation);
+          setAnalysisData(selectedPresentation.nonverbal_analysis);
+          processAnalysisData(selectedPresentation.nonverbal_analysis);
+        } else {
+          throw new Error("발표 데이터를 찾을 수 없습니다.");
+        }
+      } catch (err) {
+        console.error("발표 데이터 로드 에러:", err);
+        setError('데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
       }
     };
     
     fetchNonverbalData();
-  }, []);
+  }, [presentationId]);
   
-  /**
-   * 분석 데이터 처리 함수
-   * 
-   * 1. 카테고리별 발생 빈도 계산
-   * 2. 기본 선택 구간 설정 (비정상 구간 중 첫 번째)
-   */
-  const processAnalysisData = useCallback((data: NonverbalAnalysisData) => {
+ /**
+ * 분석 데이터 처리 함수
+ * 
+ * 백엔드 개발자 참고:
+ * 1. 비언어적 행동 카테고리는 접두어로 구분함:
+ *    - '손동작': 손동작(머리), 손동작(얼굴) 등
+ *    - '머리동작': 머리동작(고개흔들기), 머리동작(숙이기) 등
+ *    - '팔동작': 팔동작(뒷짐), 팔동작(무의미반동) 등
+ *    - '자세': 자세(비비꼬기), 자세(좌우흔들기) 등
+ * 
+ * 2. 백엔드에서 행동 클래스명은 위 패턴을 따라야 함
+ * 3. is_normal이 true이면 top_classes는 빈 배열이거나 "정상"만 포함
+ */
+  const processAnalysisData = useCallback((data: NonverbalSegment[]) => {
     if (!data || data.length === 0) return;
     
     // 카테고리별 발생 빈도 계산
@@ -352,7 +243,7 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     // 각 구간별로 처리
     data.forEach((segment, index) => {
       // 정상 구간이 아닌 경우만 카테고리 집계
-      if (!segment.is_normal && segment.top_classes.length > 0) {
+      if (!segment.is_normal && segment.top_classes && segment.top_classes.length > 0) {
         const topClass = segment.top_classes[0].class;
         
         // 첫 번째 비정상 구간 인덱스 저장
@@ -401,7 +292,7 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
       setSelectedFeedback("이 구간에서는 특별한 문제가 감지되지 않았습니다. 좋은 자세와 제스처를 유지하고 있습니다.");
     } 
     // 비정상 구간인 경우
-    else if (segment.top_classes.length > 0) {
+    else if (segment.top_classes && segment.top_classes.length > 0) {
       const topBehavior = segment.top_classes[0].class;
       setSelectedBehavior(topBehavior);
       
@@ -429,9 +320,14 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
   
   /**
    * 대시보드로 돌아가기 함수
+   * 만약 presentationId가 있으면 해당 ID를 유지한 채 대시보드로 이동
    */
   const handleNavigateBack = () => {
-    navigate('/analysis');
+    if (presentationId) {
+      navigate(`/analysis/${presentationId}`);
+    } else {
+      navigate('/analysis');
+    }
   };
 
   /**
@@ -439,7 +335,9 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
    * 
    * 실제 구현 시 백엔드에서 제공하는 썸네일 URL 또는 
    * 비디오 시간에 따른 썸네일 생성 로직으로 대체해야 합니다.
+   * frame_dir 필드를 사용하여 이미지 URL 생성 예정
    */
+  
   const getSegmentThumbnail = (segment: NonverbalSegment): string => {
     // 실제 구현 시 frame_dir을 사용하여 이미지 경로 생성
     // return `/api/analysis/frames/${segment.frame_dir}/thumbnail.jpg`;
@@ -480,6 +378,7 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
               }}
             >
               비언어적 분석
+              {presentation && ` - ${presentation.title}`}
             </Typography>
             <Typography 
               variant="body1" 
@@ -504,6 +403,16 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
         
         <Fade in={showContent} timeout={1000}>
           <Grid container spacing={4}>
+
+            {/* 
+            비디오 썸네일 영역
+            
+            백엔드 개발자 참고:
+            1. 각 구간별 대표 이미지가 필요함 (시각적 피드백을 위해 중요)
+            2. segment.frame_dir 필드에 이미지 디렉토리 경로가 들어있어야 함
+            3. 썸네일 이미지 크기는 640x360px 권장
+            */}
+
             {/* 왼쪽 컬럼: 비디오 썸네일 + 타임라인 */}
             <Grid item xs={12} md={6}>
               <Slide direction="right" in={showContent} timeout={800}>
@@ -769,6 +678,15 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Slide direction="left" in={showContent} timeout={800}>
                 <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* 
+                차트 영역
+                
+                백엔드 개발자 참고:
+                1. 카테고리별 발생 빈도는 클라이언트에서 계산함 
+                2. 각 행동의 카테고리는 행동명의 접두어로 판단함
+                3. top_classes[0].class 값이 "자세(비스듬히)"와 같은 형식이어야 함
+                */}
+
                   {/* 상단: 행동 카테고리 차트 */}
                   <Paper 
                     elevation={0}
@@ -838,6 +756,16 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                     )}
                   </Paper>
                   
+                {/* 
+                피드백 영역
+                
+                백엔드 개발자 참고:
+                1. 이 영역은 선택된 구간의 상세 피드백을 표시함
+                2. top_classes[0].probability는 백분율로 표시되어야 함 (0-100)
+                3. 피드백 텍스트는 클라이언트에서 정의된 매핑 사용 (BEHAVIOR_FEEDBACK)
+                4. 향후 확장: 백엔드에서 각 행동별 맞춤 피드백 제공 API 개발 가능
+                */}
+
                   {/* 중간: 선택된 구간 피드백 */}
                   <Paper 
                     elevation={0}
@@ -894,7 +822,7 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                         
                         <Fade in={showFeedback} timeout={500}>
                           <Box>
-                            {!analysisData[selectedSegmentIndex].is_normal && (
+                            {!analysisData[selectedSegmentIndex].is_normal && analysisData[selectedSegmentIndex].top_classes && (
                               <Box sx={{ mb: 3 }}>
                                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                                   감지된 행동
