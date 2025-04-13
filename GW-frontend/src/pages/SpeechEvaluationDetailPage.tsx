@@ -5,11 +5,12 @@
  * 
  * URL 파라미터:
  * - type: 'speed' 또는 'volume' (분석 유형)
+ * - id: 발표 ID (optional, 없으면 가장 최근 발표 분석 표시)
  * 
  * 데이터 흐름:
  * 1. AnalysisDashboardPage에서 사용자가 특정 차트(속도/음량)를 클릭하면 이 페이지로 이동
- * 2. URL 파라미터 'type'에 따라 해당 분석 결과를 표시
- * 3. 백엔드 API에서 분석 데이터를 가져와 차트와 피드백으로 시각화
+ * 2. URL 파라미터 'type'과 'id'에 따라 해당 분석 결과를 표시
+ * 3. mockAnalysisData에서 분석 데이터를 가져와 차트와 피드백으로 시각화
  */
 
 import React, { useState, useEffect } from 'react';
@@ -49,21 +50,20 @@ import {
   Speed as SpeedIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+
+// Import mock data
+import { 
+  mockAnalysisDataMap, 
+  PresentationAnalysis, 
+  ChartDataPoint
+} from '../components/mockAnalysisData';
 
 /**
  * 데이터 타입 정의
  * 
  * AnalysisType: 분석 유형 ('speed' 또는 'volume')
  * ChartEventData: 차트 클릭 이벤트 데이터 구조
- * SpeakingSpeedData: 말하기 속도 데이터 구조 (시간 구간별 WPM값)
- * SpeakingEvaluationData: 말하기 속도 평가 데이터 구조 (시간 구간별 피드백)
- * VolumeAnalysisData: 음량 분석 데이터 구조 (시간 구간별 음량값)
- * VolumeEvaluationData: 음량 평가 데이터 구조 (시간 구간별 피드백)
- * AnalysisResult: 전체 분석 결과 데이터 구조
- * ChartDataPoint: 차트 표시용 데이터 포인트 구조
  */
-type AnalysisType = 'speed' | 'volume';
 
 // 이벤트 핸들러를 위한 차트 데이터 타입
 interface ChartEventData {
@@ -79,73 +79,14 @@ interface ChartEventData {
   chartY?: number;
 }
 
-/**
- * 백엔드 API에서 반환되는 데이터 타입 정의
- * 
- * 주의: 백엔드 개발자는 이 타입 정의에 맞게 API 응답을 구성해야 함
- */
-type SpeakingSpeedData = { 
-  [timeRange: string]: number; // 각 시간 구간(예: "00:00-01:00")과 WPM값 (예: 120) 
-};
-
-type SpeakingEvaluationData = { 
-  [timeRange: string]: string; // 각 시간 구간별 피드백 메시지 
-};
-
-type VolumeAnalysisData = { 
-  [timeRange: string]: number; // 각 시간 구간과 음량(dB)값 
-};
-
-type VolumeEvaluationData = { 
-  [timeRange: string]: string; // 각 시간 구간별 피드백 메시지 
-};
-
-/**
- * 분석 결과 전체 타입
- * 
- * 백엔드 API 응답은 이 형식을 따라야 함
- * 각 필드의 의미:
- * - _id: 분석 결과 고유 ID (MongoDB ID 형식)
- * - user_id: 사용자 ID
- * - filename: 분석한 영상 파일명
- * - speaking_speed: 시간 구간별 말하기 속도 데이터 (WPM)
- * - volume_analysis: 시간 구간별 음량 데이터 (dB)
- * - speaking_evaluation: 시간 구간별 말하기 속도 피드백
- * - volume_evaluation: 시간 구간별 음량 피드백
- * - message: 오류 또는 정보 메시지
- */
-type AnalysisResult = {
-  _id?: string;
-  user_id?: number;
-  filename?: string;
-  speaking_speed?: SpeakingSpeedData;
-  volume_analysis?: VolumeAnalysisData;
-  speaking_evaluation?: SpeakingEvaluationData;
-  volume_evaluation?: VolumeEvaluationData;
-  message?: string;
-};
-
-/**
- * 차트에 표시할 데이터 포인트 형식
- * 
- * time: X축에 표시될 시간 (예: "00:00")
- * value: Y축에 표시될 값 (말하기 속도인 경우 WPM, 음량인 경우 dB)
- * timeRange: 원본 데이터의 시간 범위 (예: "00:00-01:00")
- */
-interface ChartDataPoint {
-  time: string;
-  value: number;
-  timeRange?: string;
-}
-
 const SpeechEvaluationDetailPage: React.FC = () => {
   const navigate = useNavigate();
-  const params = useParams();
-  // URL 파라미터에서 분석 유형 추출 ('speed' 또는 'volume')
-  const type = params.type as AnalysisType;
+  const { type, presentationId } = useParams<{ type: string; presentationId: string }>();
+  
+  // URL 파라미터에서 분석 유형 및 발표 ID 추출
   
   // 상태 관리
-  const [analysisData, setAnalysisData] = useState<AnalysisResult | null>(null);
+  const [presentation, setPresentation] = useState<PresentationAnalysis | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<string>('구간을 선택하면 상세 피드백이 표시됩니다.');
@@ -162,6 +103,7 @@ const SpeechEvaluationDetailPage: React.FC = () => {
    * URL 파라미터 'type'이 'speed' 또는 'volume'이 아니면 에러 표시
    */
   useEffect(() => {
+    if (!type) return; // type이 정의되지 않았으면 실행하지 않음.
     if (type !== 'speed' && type !== 'volume') {
       setError('잘못된 분석 유형입니다.');
       // 잘못된 URL 파라미터인 경우 대시보드로 리디렉션하는 것이 좋음
@@ -181,114 +123,144 @@ const SpeechEvaluationDetailPage: React.FC = () => {
   }, []);
   
   /**
-   * 백엔드 API에서 분석 데이터 가져오기
+   * 발표 데이터 가져오기
    * 
-   * 백엔드 개발자 참고:
-   * 1. API 엔드포인트: '/api/analysis/{type}' (여기서 type은 'speed' 또는 'volume')
-   * 2. 응답 형식은 AnalysisResult 타입을 따라야 함
-   * 3. 현재는 개발 테스트를 위한 목업 데이터 사용 중
-   * 4. 실제 구현 시 아래 주석된 axios 호출 코드 사용
+   * presentationId가 제공되면 해당 ID에 맞는 데이터를 가져오고,
+   * 없으면 첫 번째 발표 데이터를 사용 (또는 기본 데이터)
    */
   useEffect(() => {
     if (type !== 'speed' && type !== 'volume') return;
     
-    const fetchAnalysisData = async () => {
+    const fetchPresentationData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        /**
-         * 백엔드 API 연동 시 코드 예제:
-         * 
-         * const response = await axios.get(`/api/analysis/${type}`);
-         * setAnalysisData(response.data);
-         * processChartData(response.data);
-         */
+        // 발표 ID에 해당하는 데이터 가져오기
+        let selectedPresentation: PresentationAnalysis | null = null;
         
-        // 개발 테스트를 위한 예시 데이터
-        setTimeout(() => {
-          const mockData: AnalysisResult = {
-            speaking_speed: {
-              "00:00-01:00": 115,
-              "01:00-02:00": 125,
-              "02:00-03:00": 140,
-              "03:00-04:00": 130,
-              "04:00-05:00": 121,
-              "05:00-06:00": 115,
-              "06:00-07:00": 105,
-              "07:00-08:00": 128,
-            },
-            volume_analysis: {
-              "00:00-01:00": 65,
-              "01:00-02:00": 70,
-              "02:00-03:00": 72,
-              "03:00-04:00": 65,
-              "04:00-05:00": 60,
-              "05:00-06:00": 68,
-              "06:00-07:00": 72,
-              "07:00-08:00": 75,
-            },
-            speaking_evaluation: {
-              "00:00-01:00": "이 구간의 속도는 듣기에 적당합니다.",
-              "01:00-02:00": "이 구간의 속도는 듣기에 적당합니다.",
-              "02:00-03:00": "이 구간은 말하는 속도가 빨라 이해하기 어려울 수 있습니다.",
-              "03:00-04:00": "이 구간의 속도는 듣기에 적당합니다.",
-              "04:00-05:00": "이 구간의 속도는 듣기에 적당합니다.",
-              "05:00-06:00": "이 구간의 속도는 듣기에 적당합니다.",
-              "06:00-07:00": "이 구간은 말하는 속도가 느려 지루하게 느껴질 수 있습니다.",
-              "07:00-08:00": "이 구간의 속도는 듣기에 적당합니다.",
-            },
-            volume_evaluation: {
-              "00:00-01:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "01:00-02:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "02:00-03:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "03:00-04:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "04:00-05:00": "이 구간의 음량이 작아 강조가 부족했습니다.",
-              "05:00-06:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "06:00-07:00": "이 구간의 음량이 적절하여 메시지 전달력이 높았습니다.",
-              "07:00-08:00": "이 구간의 음량이 너무 크게 들려 다소 공격적으로 느껴질 수 있습니다.",
-            }
-          };
-          
-          setAnalysisData(mockData);
-          processChartData(mockData);
-        }, 1000);
-      } catch (err) {
-        if (axios.isAxiosError(err) && err.response) {
-          setError(`데이터를 불러오는 중 오류가 발생했습니다: ${err.response.status}`);
+        if (presentationId && mockAnalysisDataMap[presentationId]) {
+          // ID에 해당하는 발표 데이터 가져오기
+          selectedPresentation = mockAnalysisDataMap[presentationId];
         } else {
-          setError('데이터를 불러오는 중 오류가 발생했습니다.');
+          // ID가 없거나 해당하는 발표가 없으면 첫 번째 발표 데이터 사용
+          const firstPresentationId = Object.keys(mockAnalysisDataMap)[0];
+          selectedPresentation = mockAnalysisDataMap[firstPresentationId];
         }
+        
+        if (selectedPresentation) {
+          setPresentation(selectedPresentation);
+          processChartData(selectedPresentation);
+        } else {
+          throw new Error("발표 데이터를 찾을 수 없습니다.");
+        }
+      } catch (err) {
+        console.error("발표 데이터 로드 에러:", err);
+        setError('데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchAnalysisData();
-  }, [type, navigate]);
+    fetchPresentationData();
+  }, [type, presentationId, navigate]);
   
   /**
-   * 백엔드 데이터를 차트 형식으로 변환하는 함수
+   * 차트 데이터 변환 함수
    * 
-   * API에서 받은 데이터를 차트에 표시할 수 있는 형식으로 변환
+   * 가져온 발표 데이터를 차트 표시용 형식으로 변환
    * 
-   * @param data AnalysisResult 타입의 백엔드 응답 데이터
+   * @param data 발표 분석 데이터
    */
-  const processChartData = (data: AnalysisResult) => {
+  const processChartData = (data: PresentationAnalysis) => {
     if (!data) return;
     
-    // 분석 타입에 따라 적절한 데이터 선택 (말하기 속도 또는 음량)
-    const sourceData = type === 'speed' ? data.speaking_speed : data.volume_analysis;
-    if (!sourceData) return;
+    // 분석 타입에 따라 적절한 차트 데이터 생성
+    const formattedData: ChartDataPoint[] = [];
     
-    // 데이터 형식 변환: { "00:00-01:00": 120 } -> { time: "00:00", value: 120, timeRange: "00:00-01:00" }
-    const formattedData: ChartDataPoint[] = Object.entries(sourceData).map(([timeRange, value]) => ({
-      time: timeRange.split('-')[0], // 시작 시간만 X축에 표시
-      value: value,
-      timeRange: timeRange // 전체 타임레인지 저장 (피드백 표시 시 필요)
-    }));
+    if (type === 'speed' && data.speaking_speed) {
+      // 말하기 속도 데이터
+      data.speaking_speed.segment_wpm.forEach((segment) => {
+        const timeRangeStr = `${formatTime(segment.start)}-${formatTime(segment.end)}`;
+        formattedData.push({
+          time: formatTime(segment.start),
+          wpm: segment.wpm,
+          timeRange: timeRangeStr
+        });
+      });
+    } else if (type === 'volume' && data.volume_analysis) {
+      // 음량 데이터
+      data.volume_analysis.segment_data.forEach((segment) => {
+        const timeRangeStr = `${formatTime(segment.time_stamps[0])}-${formatTime(segment.time_stamps[1])}`;
+        formattedData.push({
+          time: formatTime(segment.time_stamps[0]),
+          db: segment.db,
+          timeRange: timeRangeStr
+        });
+      });
+    }
     
     setChartData(formattedData);
+    
+    // 첫 번째 구간을 기본 선택
+    if (formattedData.length > 0 && formattedData[0].timeRange) {
+      handleTimeRangeSelect(formattedData[0].timeRange);
+    }
+  };
+  
+  /**
+   * 초 단위 시간을 MM:SS 형식으로 변환
+   * 
+   * @param seconds 초 단위 시간
+   * @returns MM:SS 형식 문자열
+   */
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  /**
+   * 시간 구간 선택 핸들러
+   * 
+   * @param timeRange 선택한 시간 구간 (예: "00:00-01:00")
+   */
+  const handleTimeRangeSelect = (timeRange: string) => {
+    if (!presentation) return;
+    
+    setSelectedTimeRange(timeRange);
+    
+    // 시간 범위에서 시작 시간만 추출
+    const startTimeStr = timeRange.split('-')[0];
+    
+    // 피드백 찾기
+    let feedback = '이 구간에 대한 피드백이 없습니다.';
+    
+    if (type === 'speed' && presentation.speaking_evaluation) {
+      // 말하기 속도 피드백 추출
+      for (const segment of presentation.speaking_evaluation.segment_evaluations) {
+        if (formatTime(segment.start) === startTimeStr) {
+          feedback = segment.feedback;
+          break;
+        }
+      }
+    } else if (type === 'volume' && presentation.volume_evaluation) {
+      // 음량 피드백 추출
+      for (const segment of presentation.volume_evaluation.segment_evaluations) {
+        if (formatTime(segment.time_stamps[0]) === startTimeStr) {
+          feedback = segment.feedback;
+          break;
+        }
+      }
+    }
+    
+    setSelectedFeedback(feedback);
+    
+    // 피드백 영역 갱신 애니메이션
+    setShowFeedback(false);
+    setTimeout(() => {
+      setShowFeedback(true);
+    }, 300);
   };
   
   /**
@@ -299,26 +271,13 @@ const SpeechEvaluationDetailPage: React.FC = () => {
    * @param data 차트 클릭 이벤트 데이터
    */
   const handleChartClick = (data: ChartEventData) => {
-    if (!analysisData || !data.activePayload || data.activePayload.length === 0) return;
+    if (!data.activePayload || data.activePayload.length === 0) return;
     
     const payload = data.activePayload[0].payload;
     const selectedRange = payload.timeRange;
     
     if (selectedRange) {
-      setSelectedTimeRange(selectedRange);
-      
-      // 분석 타입에 따라 적절한 피드백 설정
-      if (type === 'speed' && analysisData.speaking_evaluation) {
-        setSelectedFeedback(analysisData.speaking_evaluation[selectedRange] || '이 구간에 대한 피드백이 없습니다.');
-      } else if (type === 'volume' && analysisData.volume_evaluation) {
-        setSelectedFeedback(analysisData.volume_evaluation[selectedRange] || '이 구간에 대한 피드백이 없습니다.');
-      }
-      
-      // 피드백 영역 갱신 애니메이션
-      setShowFeedback(false);
-      setTimeout(() => {
-        setShowFeedback(true);
-      }, 300);
+      handleTimeRangeSelect(selectedRange);
     }
   };
   
@@ -414,6 +373,7 @@ const SpeechEvaluationDetailPage: React.FC = () => {
               }}
             >
               {analysisTypeTitle}
+              {presentation && ` - ${presentation.title}`}
             </Typography>
             <Typography 
               variant="body1" 
@@ -490,9 +450,9 @@ const SpeechEvaluationDetailPage: React.FC = () => {
                           >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="time" />
-                            <YAxis domain={[90, 150]} />
+                            <YAxis domain={[80, 200]} />
                             <Tooltip 
-                              formatter={(value) => [`${value} WPM`, '말하기 속도']}
+                              formatter={(wpm) => [`${wpm} WPM`, '말하기 속도']}
                               contentStyle={{ 
                                 backgroundColor: '#fff', 
                                 borderRadius: '8px',
@@ -502,13 +462,13 @@ const SpeechEvaluationDetailPage: React.FC = () => {
                             />
                             {getReferenceLines()}
                             <Bar 
-                              dataKey="value" 
+                              dataKey="wpm" 
                               cursor="pointer"
                             >
                               {chartData.map((entry, index) => (
                                 <Cell 
                                   key={`cell-${index}`} 
-                                  fill={getBarColor(entry.value)}
+                                  fill={getBarColor(entry.wpm !== undefined ? entry.wpm : 0)}
                                   opacity={selectedTimeRange === entry.timeRange ? 1 : 0.7}
                                   stroke={selectedTimeRange === entry.timeRange ? '#000' : 'none'}
                                   strokeWidth={1}
@@ -525,9 +485,9 @@ const SpeechEvaluationDetailPage: React.FC = () => {
                           >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="time" />
-                            <YAxis domain={[50, 85]} />
+                            <YAxis domain={[30, 90]} />
                             <Tooltip 
-                              formatter={(value) => [`${value} dB`, '음량']}
+                              formatter={(db) => [`${db} dB`, '음량']}
                               contentStyle={{ 
                                 backgroundColor: '#fff', 
                                 borderRadius: '8px',
@@ -538,7 +498,7 @@ const SpeechEvaluationDetailPage: React.FC = () => {
                             {getReferenceLines()}
                             <Line 
                               type="monotone" 
-                              dataKey="value" 
+                              dataKey="db" 
                               stroke="#000" 
                               strokeWidth={3} 
                               dot={{ r: 4 }}
@@ -739,7 +699,13 @@ const SpeechEvaluationDetailPage: React.FC = () => {
           {/* 다른 분석 유형으로 이동하는 버튼 */}
           <Button
             variant="outlined"
-            onClick={() => navigate(type === 'speed' ? '/analysis/volume' : '/analysis/speed')}
+            onClick={() => {
+              const newType = type === 'speed' ? 'volume' : 'speed';
+              navigate(presentationId 
+                ? `/analysis/${newType}/${presentationId}` 
+                : `/analysis/${newType}`
+              );
+            }}
             sx={{ 
               borderRadius: 8,
               px: 3,
