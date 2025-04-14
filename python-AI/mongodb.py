@@ -6,6 +6,7 @@ import os
 
 MONGO_DB_URI = "mongodb+srv://cjhh0707:ihQQhTuqTRQ6N9Kj@analysis-db.nppaekk.mongodb.net/analysis_db?retryWrites=true&w=majority&appName=analysis-db"# 예: mongodb+srv://user:password@cluster.mongodb.net
 
+
 client = AsyncIOMotorClient(MONGO_DB_URI)
 db = client["analysis_db"]  # 데이터베이스 이름
 collection = db["results"]  # 컬렉션 이름

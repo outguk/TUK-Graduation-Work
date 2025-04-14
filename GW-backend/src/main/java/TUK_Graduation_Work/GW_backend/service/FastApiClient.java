@@ -16,46 +16,67 @@ public class FastApiClient {
     private final WebClient webClient = WebClient.builder().baseUrl("http://localhost:5000").build();
 
     /**
-     * 파일 업로드 요청 시, userId를 쿼리 파라미터로 추가하여 FastAPI의 /upload-video 엔드포인트에 전송합니다.
-     *
-     * @param filePath 로컬에 저장된 파일 경로
-     * @param userId   로그인한 사용자의 ID
+     * 비디오 파일을 FastAPI에 업로드합니다. JWT 토큰을 통해 사용자 인증.
+     * @param filePath 로컬 파일 경로
+     * @param token JWT 토큰
      * @return FastAPI 응답 (JSON 문자열)
      */
-    public Mono<String> uploadFileToFastAPI(String filePath, Long userId) {
+    public Mono<String> uploadFileToFastAPI(String filePath, String token) {
         File videoFile = new File(filePath);
         if (!videoFile.exists() || !videoFile.isFile()) {
             return Mono.error(new RuntimeException("Error: 업로드할 파일을 찾을 수 없습니다!"));
         }
-
-        System.out.println("📂 FastAPI로 업로드 요청: " + filePath + ", userId: " + userId);
-
+    
+        System.out.println("📂 FastAPI로 업로드 요청: " + filePath);
+    
         FileSystemResource fileResource = new FileSystemResource(videoFile);
-
+    
         return webClient.post()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/upload-video/")
-                        .queryParam("user_id", userId)
-                        .build())
+                // 수정: main.py에서 /fastapi/api/upload-video 로 라우트 변경
+                .uri("/fastapi/api/upload-video/")
+                .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData("file", fileResource))
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, clientResponse ->
-                        Mono.error(new RuntimeException("FastAPI 요청 오류 (4xx): " + clientResponse.statusCode())))
+                        Mono.error(new RuntimeException("FastAPI 요청 오류 (4xx): " + clientResponse.statusCode()))
+                )
                 .onStatus(HttpStatusCode::is5xxServerError, clientResponse ->
-                        Mono.error(new RuntimeException("FastAPI 서버 오류 (5xx): " + clientResponse.statusCode())))
+                        Mono.error(new RuntimeException("FastAPI 서버 오류 (5xx): " + clientResponse.statusCode()))
+                )
                 .bodyToMono(String.class)
                 .doOnError(error -> System.err.println("🚨 FastAPI 요청 실패: " + error.getMessage()));
     }
-
-    // --- 추가: 사용자별 분석 결과 조회 ---
-    // GET /analysis-by-user?user_id=xxx -> {"analyses": [...]} 형식
-    public Mono<Map<String,Object>> fetchAnalysesByUser(Long userId) {
+    /**
+     * 사용자별 분석 결과를 조회합니다. JWT 토큰으로 인증.
+     * @param token JWT 토큰
+     * @return FastAPI 응답 (Map 형식)
+     */
+    public Mono<Map<String, Object>> fetchAnalysesByUser(String token) {
         return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/analysis-by-user/")
-                    .queryParam("user_id", userId)
-                    .build())
+                // 수정: main.py에서 /fastapi/api/analysis-by-user/ 로 라우트 변경
+                .uri("/fastapi/api/analysis-by-user/")
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, clientResponse ->
+                        Mono.error(new RuntimeException("FastAPI 요청 오류 (4xx): " + clientResponse.statusCode()))
+                )
+                .onStatus(HttpStatusCode::is5xxServerError, clientResponse ->
+                        Mono.error(new RuntimeException("FastAPI 서버 오류 (5xx): " + clientResponse.statusCode()))
+                )
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
+                .doOnError(error -> System.err.println("🚨 FastAPI 요청 실패: " + error.getMessage()));
+    }
+    /**
+     * 분석 통계를 조회합니다. JWT 토큰으로 인증.
+     * @param token JWT 토큰
+     * @return FastAPI 응답 (Map 형식)
+     */
+    public Mono<Map<String, Object>> fetchAnalysisStats(String token) {
+        return webClient.get()
+                // 수정: main.py에서 /fastapi/api/analysis/stats 로 라우트 변경
+                .uri("/fastapi/api/analysis/stats")
+                .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, clientResponse ->
                     Mono.error(new RuntimeException("FastAPI 요청 오류 (4xx): " + clientResponse.statusCode()))
@@ -63,8 +84,7 @@ public class FastApiClient {
                 .onStatus(HttpStatusCode::is5xxServerError, clientResponse ->
                     Mono.error(new RuntimeException("FastAPI 서버 오류 (5xx): " + clientResponse.statusCode()))
                 )
-                // 응답이 {"analyses": [ ... ]} 형식이라 가정
-                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String,Object>>() {})
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
                 .doOnError(error -> System.err.println("🚨 FastAPI 요청 실패: " + error.getMessage()));
     }
 }

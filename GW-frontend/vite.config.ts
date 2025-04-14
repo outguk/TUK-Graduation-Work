@@ -24,6 +24,8 @@ export default defineConfig({
     proxy: {
       '/upload': 'http://localhost:8080',
       '/users': 'http://localhost:8080',
+      '/spring/api': 'http://localhost:8080',
+      '/fastapi/api': 'http://localhost:5000',
     }
   },
   build: {

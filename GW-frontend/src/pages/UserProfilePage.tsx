@@ -48,7 +48,7 @@ import axios from 'axios';
  */
 type UserProfile = {
   name: string;
-  email?: string;
+  email?: string | null;
   joinDate: string;
   totalPresentations: number;
   recentActivity?: {
@@ -85,9 +85,9 @@ const UserProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
     email: '',
-    joinDate: '',
+    joinDate: new Date().toISOString(),
     totalPresentations: 0,
-    recentActivity: []
+    recentActivity: [],
   });
   
   // UI 상태 관리
@@ -108,7 +108,6 @@ const UserProfilePage: React.FC = () => {
   
   // 애니메이션 상태
   const [showContent, setShowContent] = useState(false);
-  
   const navigate = useNavigate();
   
   // 페이지 로드 시 애니메이션 적용
@@ -126,79 +125,110 @@ const UserProfilePage: React.FC = () => {
    * 3. 응답 형식: UserProfile 타입과 일치해야 합니다
    * 4. 개발 완료 후 아래 목업 데이터 부분을 제거하고 실제 API 응답으로 대체하세요
    */
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      setLoading(true);
-      try {
-        // API 호출(백엔드 수정 필요) --------------------------------------------------
-        // 이 부분을 실제 API 호출로 구현해야 합니다
-        const response = await axios.get('/api/user/profile');
-        setProfile(response.data);
-        setFormData({
-          name: response.data.name,
-          email: response.data.email || '',
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-        // API 호출(백엔드 수정 필요) --------------------------------------------------
-        
-      } catch (err) {
-        console.error('프로필 로드 에러:', err);
-        setError('프로필 정보를 불러오는 중 오류가 발생했습니다.');
-        
-        // 개발 테스트를 위한 목업 데이터 (실제 구현 시 제거)
-        // 백엔드 개발자 참고: 이 부분은 API 개발 완료 후 제거하고, API 응답을 사용하세요
-        setProfile({
-          name: '홍길동',
-          email: 'user@example.com',
-          joinDate: '2025-01-15',
-          totalPresentations: 8,
-          recentActivity: [
-            { date: '2025-04-05', description: '취업 인터뷰 발표 분석' },
-            { date: '2025-03-20', description: '팀 프로젝트 진행 보고 분석' },
-            { date: '2025-03-02', description: '신제품 소개 발표 분석' }
-          ]
-        });
-        setFormData({
-          name: '홍길동',
-          email: 'user@example.com',
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } finally {
-        setLoading(false);
-      }
+const fetchUserProfile = async () => {
+  setLoading(true);
+  const token = localStorage.getItem('token');
+  if (!token) {
+    setError('로그인이 필요합니다.');
+    setLoading(false);
+    navigate('/');
+    return;
+  }
+  console.log('Sending token:', token); // 토큰 값 확인
+
+  let combinedProfile: UserProfile = {
+    name: '',
+    email: '',
+    joinDate: new Date().toISOString(),
+    totalPresentations: 0,
+    recentActivity: [],
+  };
+
+  try {
+    // Spring Boot 호출
+    const springConfig = { headers: { Authorization: `Bearer ${token}` } };
+    console.log('Spring Boot request config:', springConfig);
+    const userResponse = await axios.get('http://localhost:8080/spring/api/user/profile', springConfig);
+    console.log('Spring Boot response:', userResponse.data);
+
+    combinedProfile = {
+      ...combinedProfile,
+      name: userResponse.data.name || userResponse.data.username || 'Unknown',
+      email: userResponse.data.email || '',
+      joinDate: userResponse.data.joinDate || new Date().toISOString(),
     };
-    
-    fetchUserProfile();
-  }, []);
-  
-  // 편집 모드 토글
-  const toggleEditMode = () => {
-    if (editMode) {
-      // 편집 모드 종료 시 원래 값으로 되돌림
+
+    // FastAPI 호출 (독립적으로 처리)
+    try {
+      const fastApiConfig = { headers: { Authorization: `Bearer ${token}` } };
+      console.log('FastAPI request config:', fastApiConfig);
+      const analysisResponse = await axios.get('http://localhost:5000/fastapi/api/analysis/stats', fastApiConfig);
+      console.log('FastAPI response:', analysisResponse.data);
+      combinedProfile = {
+        ...combinedProfile,
+        totalPresentations: analysisResponse.data.totalPresentations || 0,
+        recentActivity: analysisResponse.data.recentActivity || [],
+      };
+    } catch (fastApiErr) {
+      console.warn('FastAPI request failed:', fastApiErr);
+      // FastAPI 실패 시 기본값 유지
+    }
+
+    console.log('Combined profile:', combinedProfile); // 디버깅용
+
+    setProfile(combinedProfile);
+    setFormData({
+      name: combinedProfile.name,
+      email: combinedProfile.email || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+  } catch (err) {
+    console.error('Profile load error:', err);
+    if (axios.isAxiosError(err) && err.response) {
+      setError(`Profile load failed: ${err.response.status} - ${err.response.data.message || err.message}`);
+      console.log('Error response:', err.response.data);
+    } else {
+      setError('Failed to connect to server.');
+    }
+    setProfile(combinedProfile);
       setFormData({
-        name: profile.name,
-        email: profile.email || '',
+        name: combinedProfile.name,
+        email: combinedProfile.email || '',
         currentPassword: '',
         newPassword: '',
-        confirmPassword: ''
+        confirmPassword: '',
       });
-      setError(null);
-    }
-    setEditMode(!editMode);
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [navigate]);
   
-  // 폼 입력값 변경 처리
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+//   // 편집 모드 토글
+const toggleEditMode = () => {
+  if (editMode) {
+    setFormData({
+      name: profile.name,
+      email: profile.email || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setError(null);
+  }
+  setEditMode(!editMode);
+};
+  
+//   // 폼 입력값 변경 처리
+const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  setFormData(prev => ({ ...prev, [name]: value }));
+};
   
   /**
    * 프로필 업데이트 처리
@@ -222,7 +252,7 @@ const UserProfilePage: React.FC = () => {
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 클라이언트 측 기본 유효성 검사
+     // 클라이언트 측 기본 유효성 검사
     if (!formData.name.trim()) {
       setError('이름은 필수 입력 항목입니다.');
       return;
@@ -241,40 +271,42 @@ const UserProfilePage: React.FC = () => {
     
     setSubmitting(true);
     setError(null);
-    
+    const token = localStorage.getItem('token');
     try {
-      // API 호출 (비밀번호 변경은 백엔드에서 유효성 검사 및 처리) -----------------------------------
-      // 백엔드 개발자 참고: 아래 requestData 형식으로 PUT 요청을 처리하는 API 엔드포인트를 구현하세요
       const requestData = {
         name: formData.name,
-        email: formData.email,
-        ...(formData.currentPassword && formData.newPassword ? {
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword
-        } : {})
+        email: formData.email || null,
+        ...(formData.currentPassword && formData.newPassword
+          ? { currentPassword: formData.currentPassword, newPassword: formData.newPassword }
+          : {}),
       };
-      // API 호출 (비밀번호 변경은 백엔드에서 유효성 검사 및 처리) -----------------------------------
-      await axios.put('/api/user/profile', requestData);
-      
-      // UI 업데이트
+      console.log('Sending update request:', requestData);
+      const response = await axios.put('http://localhost:8080/spring/api/user/profile', requestData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Update response:', response.data);
+
+       // 업데이트 후 즉시 최신 데이터 가져오기
       setProfile(prev => ({
         ...prev,
-        name: formData.name,
-        email: formData.email
+        name: response.data.name || prev.name,
+        email: response.data.email || prev.email,
+        joinDate: response.data.joinDate || prev.joinDate,
+      }));
+      setFormData(prev => ({
+        ...prev,
+        name: response.data.name || prev.name,
+        email: response.data.email || prev.email,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
       }));
       
       setSuccess('프로필이 성공적으로 업데이트되었습니다.');
       setEditMode(false);
       
       // 비밀번호 필드 초기화
-      setFormData(prev => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      }));
-      
-      // 3초 후 성공 메시지 사라짐
+      setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
@@ -298,10 +330,14 @@ const UserProfilePage: React.FC = () => {
     }
   };
   
-  // 이름의 첫 글자 가져오기 (아바타용)
-  const getInitial = (name: string) => {
-    return name ? name.charAt(0).toUpperCase() : 'U';
-  };
+// 이름의 첫 글자 가져오기 (아바타용)
+const getInitial = (name: string | null | undefined): string => {
+  if (!name || name.trim() === '') {
+    return 'U';
+  }
+  const firstChar = name.trim().charAt(0);
+  return firstChar ? firstChar.toUpperCase() : 'U';
+};
 
   return (
     <Box
@@ -442,21 +478,21 @@ const UserProfilePage: React.FC = () => {
                           fontSize: '3rem',
                           fontWeight: 500
                         }}
-                        aria-label={`${profile.name}의 아바타`}
+                        aria-label={`${profile.name || '사용자'}의 아바타`}
                       >
                         {getInitial(profile.name)}
                       </Avatar>
                       
                       <Typography variant="h5" fontWeight={600} gutterBottom>
-                        {profile.name}
+                        {profile.name || '이름 없음'}
                       </Typography>
                       
                       <Typography variant="body1" color="text.secondary" gutterBottom>
-                        {profile.email}
+                        {profile.email || '이메일 없음'}
                       </Typography>
                       
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        가입일: {new Date(profile.joinDate).toLocaleDateString()}
+                        가입일: {profile.joinDate ? new Date(profile.joinDate).toLocaleDateString() : '알 수 없음'}
                       </Typography>
                       
                       <Box sx={{ mt: 3 }}>

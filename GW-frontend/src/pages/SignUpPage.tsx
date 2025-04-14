@@ -15,8 +15,10 @@ import axios from 'axios';
 
 const SignUpPage: React.FC = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');   // 이메일  추가
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);  // 가입일자 상태 추가
   const navigate = useNavigate();
   
   // 애니메이션 상태 관리
@@ -31,12 +33,19 @@ const SignUpPage: React.FC = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post('/users/new', { username, password });
-      if (response.status === 200 || response.status === 302) {
+      const response = await axios.post('/spring/api/users/new', { username, email, password });
+      if (response.status === 200 || response.status === 201) { // 201 Created도 허용
+        const token = response.data.token; // 응답에서 토큰 추출
+        localStorage.setItem('token', token); // 토큰 저장
+        setCreatedAt(response.data.createdAt || new Date().toISOString());
         navigate('/');
       }
     } catch (err) {
-      setError('회원가입 중 오류가 발생했습니다.');
+      if (axios.isAxiosError(err) && err.response) {
+        setError(err.response.data.message || '회원가입 중 오류가 발생했습니다.');
+      } else {
+        setError('서버 연결에 실패했습니다.');
+      }
     }
   };
 
@@ -154,6 +163,25 @@ const SignUpPage: React.FC = () => {
                   }
                 }}
               />
+              {/* 이메일 */}
+              <TextField
+                  label="이메일"
+                  fullWidth
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  inputProps={{ 'aria-label': '이메일 입력' }}
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': { borderColor: '#000' },
+                      '&.Mui-focused fieldset': { borderColor: '#000' },
+                    },
+                    '& .MuiFormLabel-root.Mui-focused': { color: '#000' },
+                  }}
+                />
               <TextField
                 label="비밀번호"
                 fullWidth
@@ -221,6 +249,17 @@ const SignUpPage: React.FC = () => {
             >
               {error}
             </Typography>
+          )}
+
+          {/* 가입일자 표시 */}
+          {createdAt && (
+              <Typography 
+                color="text.secondary" 
+                mt={3} 
+                sx={{ textAlign: 'center', fontSize: '0.875rem' }}
+              >
+                가입일자: {new Date(createdAt).toLocaleString()}
+              </Typography>
           )}
           
           <Box 

@@ -18,8 +18,9 @@
 
 
 - mongodb + aws rds
-pip install motor
-pip install sqlalchemy pymysql python-dotenv
+- pip install motor
+- pip install sqlalchemy pymysql python-dotenv
+
 
 
 

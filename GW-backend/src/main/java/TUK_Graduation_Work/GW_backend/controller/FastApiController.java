@@ -17,6 +17,7 @@ import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/spring/api") // 경로 통일
 public class FastApiController {
 
     private final FastApiClient fastApiClient;
@@ -28,36 +29,27 @@ public class FastApiController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<Map<String, Object>> handleFileUpload(
             @RequestPart("file") FilePart file,
+            @RequestHeader("Authorization") String authorizationHeader,
             ServerWebExchange exchange
     ) {
-        // WebFlux 세션 접근
-        return exchange.getSession().flatMap(webSession -> {
-            Object userIdObj = webSession.getAttribute("userId");
-            if (userIdObj == null) {
-                Map<String, Object> errorMap = new HashMap<>();
-                errorMap.put("message", "로그인 필요: 세션에 userId가 없습니다.");
-                return Mono.just(errorMap);
-            }
-            Long userId = (Long) userIdObj;
+        // JWT 토큰 추출
+        String token = authorizationHeader.startsWith("Bearer ") ? authorizationHeader.substring(7) : authorizationHeader;
 
-            // 임시 디렉토리에 파일 저장할 경로
-            String tempDir = System.getProperty("java.io.tmpdir");
-            String fileName = file.filename();
-            Path tempPath = Paths.get(tempDir, fileName);
+        // 임시 디렉토리에 파일 저장
+        String tempDir = System.getProperty("java.io.tmpdir");
+        String fileName = file.filename();
+        Path tempPath = Paths.get(tempDir, fileName);
 
-            // file.transferTo(...)는 이미 Mono<Void> 반환
-            // 별도의 block() 없이 체인식으로 사용
-            return file.transferTo(tempPath)
-                // 파일 시스템 접근은 잠재적으로 블로킹이므로 별도 스레드풀에서 실행
-                .publishOn(Schedulers.boundedElastic())
+        return file.transferTo(tempPath)
+                .publishOn(Schedulers.boundedElastic()) // 파일 I/O를 별도 스레드에서 처리
                 .thenReturn(tempPath)  // Mono<Path>
-                .flatMap(savedPath -> fastApiClient.uploadFileToFastAPI(savedPath.toString(), userId))
+                .flatMap(savedPath -> fastApiClient.uploadFileToFastAPI(savedPath.toString(), token)) // token 사용
                 .flatMap(jsonString -> {
                     try {
                         ObjectMapper objectMapper = new ObjectMapper();
                         Map<String, Object> resultMap = objectMapper.readValue(
                                 jsonString, new TypeReference<Map<String, Object>>() {});
-                        resultMap.put("message", "파일 업로드 및 분석 성공! (userId=" + userId + ")");
+                        resultMap.put("message", "파일 업로드 및 분석 성공!");
                         return Mono.just(resultMap);
                     } catch (Exception e) {
                         Map<String, Object> errorMap = new HashMap<>();
@@ -70,22 +62,25 @@ public class FastApiController {
                     errorMap.put("message", "파일 업로드 실패: " + e.getMessage());
                     return Mono.just(errorMap);
                 });
-        });
     }
 
-     // --- 추가: 사용자별 분석 결과 조회 ---
-    // GET /my-analyses -> 세션에서 userId -> fastApiClient.fetchAnalysesByUser(userId)
     @GetMapping("/my-analyses")
-    public Mono<Map<String, Object>> getMyAnalyses(ServerWebExchange exchange) {
-        return exchange.getSession().flatMap(webSession -> {
-            Object userIdObj = webSession.getAttribute("userId");
-            if (userIdObj == null) {
-                Map<String, Object> errorMap = new HashMap<>();
-                errorMap.put("message", "로그인 필요 (세션에 userId 없음)");
-                return Mono.just(errorMap);
-            }
-            Long userId = (Long) userIdObj;
-            return fastApiClient.fetchAnalysesByUser(userId);
-        });
+    public Mono<Map<String, Object>> getMyAnalyses(
+            @RequestHeader("Authorization") String authorizationHeader,
+            ServerWebExchange exchange
+    ) {
+        // JWT 토큰 추출
+        String token = authorizationHeader.startsWith("Bearer ") ? authorizationHeader.substring(7) : authorizationHeader;
+
+        return fastApiClient.fetchAnalysesByUser(token)
+                .map(result -> {
+                    result.put("message", "분석 결과 조회 성공");
+                    return result;
+                })
+                .onErrorResume(e -> {
+                    Map<String, Object> errorMap = new HashMap<>();
+                    errorMap.put("message", "분석 결과 조회 실패: " + e.getMessage());
+                    return Mono.just(errorMap);
+                });
     }
 }
