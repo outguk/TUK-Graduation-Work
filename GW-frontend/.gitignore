@@ -25,3 +25,5 @@ dist-ssr
 *.js
 *.svg
 *.png
+node_modules/
+
