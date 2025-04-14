@@ -12,6 +12,8 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 
 @Component
 public class JwtAuthenticationFilter implements WebFilter {
@@ -39,7 +41,9 @@ public class JwtAuthenticationFilter implements WebFilter {
                 UsernamePasswordAuthenticationToken authentication = 
                     new UsernamePasswordAuthenticationToken(userId, null, null);
                 return chain.filter(exchange)
-                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                        .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
+                                Mono.just(new SecurityContextImpl(authentication))
+                        ));
             } catch (Exception e) {
                 logger.error("Token validation failed: {}", e.getMessage(), e);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
