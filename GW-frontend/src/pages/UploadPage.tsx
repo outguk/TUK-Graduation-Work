@@ -34,6 +34,23 @@ type AnalysisResult = {
       top_classes: { class: string; probability: number }[];
     };
   };
+  // 대본 분석 추가
+  script_analysis?: {
+    length: number;
+    length_feedback: string;
+    min_length: number;
+    max_length: number;
+    non_honorific_count: number;
+    uncertainty_count: number;
+    subject_verb_mismatch_count: number;
+    profanity_count: number;
+    non_honorific_examples: [number, string][];
+    uncertainty_examples: [number, string][];
+    subject_verb_examples: [number, string][];
+    profanity_examples: [number, string][];
+    otas_detected: [number, string, number, string][];
+  };
+
   message?: string;
 };
 
@@ -196,7 +213,45 @@ const UploadPage: React.FC = () => {
           </Box>
         </Box>
       )}
+
+      {result?.script_analysis && (
+          <Box mt={5}>
+            <Typography variant="h6" gutterBottom>📝 대본 분석 결과</Typography>
+            <Paper elevation={2} sx={{ borderRadius: 2, p: 2, backgroundColor: "#f8f9fa" }}>
+              <Typography variant="body1" gutterBottom>
+                {result.script_analysis.length_feedback}
+              </Typography>
+
+              <Typography variant="body2" mt={1}>
+                🔢 전체 글자 수: {result.script_analysis.length}자<br />
+                📏 권장 범위: {result.script_analysis.min_length} ~ {result.script_analysis.max_length}자
+              </Typography>
+
+              <Typography variant="body2" mt={2}>🙅 비격식 표현 문장 수: {result.script_analysis.non_honorific_count}</Typography>
+              <Typography variant="body2">❓ 추측 표현 문장 수: {result.script_analysis.uncertainty_count}</Typography>
+              <Typography variant="body2">🧩 주어-서술어 불일치 문장 수: {result.script_analysis.subject_verb_mismatch_count}</Typography>
+              <Typography variant="body2">🚫 비속어 문장 수: {result.script_analysis.profanity_count}</Typography>
+
+              {result.script_analysis.uncertainty_examples.length > 0 && (
+                  <>
+                    <Typography variant="body2" mt={2} fontWeight="bold">❗ 추측 표현 예시</Typography>
+                    <ul style={{ paddingLeft: 16 }}>
+                      {result.script_analysis.uncertainty_examples.map(([num, sentence], i) => (
+                          <li key={i}>
+                            문장 {num}: {sentence}
+                          </li>
+                      ))}
+                    </ul>
+                  </>
+              )}
+            </Paper>
+          </Box>
+      )}
+
+
+
     </Container>
+
   );
 };
 
