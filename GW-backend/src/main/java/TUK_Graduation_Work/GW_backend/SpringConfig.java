@@ -32,12 +32,18 @@ public class SpringConfig {
     // SPA 라우팅 Fallback
     @Bean
     public RouterFunction<ServerResponse> spaRouter() {
+
+        RequestPredicate isApi = RequestPredicates.path("/spring/api/**");
+        RequestPredicate isGet = RequestPredicates.GET("/**");
+
         return RouterFunctions
                 .resources("/**", new ClassPathResource("static/"))
-                .andRoute(RequestPredicates.GET("/**"), request ->
+                // ①  GET 이고 ②  /spring/api/** 가 아닌 것만 index.html
+                .andRoute(isGet.and(isApi.negate()), req ->
                         ServerResponse.ok()
                                 .contentType(MediaType.TEXT_HTML)
-                                .body(BodyInserters.fromResource(new ClassPathResource("static/index.html")))
+                                .body(BodyInserters.fromResource(
+                                        new ClassPathResource("static/index.html")))
                 );
     }
 }

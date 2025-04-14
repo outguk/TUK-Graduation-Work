@@ -7,6 +7,9 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.io.File;
 import java.util.Map;
@@ -86,5 +89,22 @@ public class FastApiClient {
                 )
                 .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
                 .doOnError(error -> System.err.println("🚨 FastAPI 요청 실패: " + error.getMessage()));
+    }
+
+    public Mono<Map> getAnalysis(String filename, String authorization) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/fastapi/api/get-analysis/")
+                        .queryParam("filename", filename)
+                        .build())
+                .header("Authorization", authorization)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                return Mono.error(new RuntimeException("FastAPI error: " + errorBody));
+                            });
+                })
+                .bodyToMono(Map.class);
     }
 }

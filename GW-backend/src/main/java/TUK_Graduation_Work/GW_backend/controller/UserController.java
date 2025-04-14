@@ -114,15 +114,25 @@ public class UserController {
 
     @GetMapping("/user/profile")
     public Mono<ResponseEntity<Map<String, Object>>> getUserProfile() {
+        // logger.info("getUserProfile controller ");
+
         return ReactiveSecurityContextHolder.getContext()
-            .map(context -> (Long) context.getAuthentication().getPrincipal())
-            .flatMap(userId -> userService.findByIdAsync(userId))
-            .flatMap(user -> {
+            .doOnNext(ctx -> logger.info("Security context: {}", ctx))
+            .map(context -> {
+                Object principal = context.getAuthentication().getPrincipal();
+                // System.out.println(">>> Extracted principal: " + principal);
+                return (Long) principal;
+            })
+                .flatMap(userId -> {
+                    System.out.println(">>> userId = " + userId);
+                    return userService.findByIdAsync(userId);
+                })
+                .flatMap(user -> {
                 Map<String, Object> response = new HashMap<>();
                 response.put("name", user.getUsername());
                 response.put("email", user.getEmail());
                 response.put("joinDate", user.getCreatedAt().toString());
-                logger.info("Profile fetched - userId: {}, name: {}, email: {}", user.getId(), user.getUsername(), user.getEmail());
+                // System.out.println(">>> Found user: username = " + user.getUsername() + ", email = " + user.getEmail());
                 return Mono.just(ResponseEntity.ok(response));
             })
             .switchIfEmpty(Mono.just(ResponseEntity.status(401).body(Map.of("message", "User not found or invalid token"))));
@@ -146,7 +156,10 @@ public class UserController {
 
     @PutMapping("/user/profile")
     public Mono<ResponseEntity<Map<String, Object>>> updateUserProfile(
-            @RequestBody Mono<ProfileUpdateForm> formMono) {
+
+    @RequestBody Mono<ProfileUpdateForm> formMono) {
+        // logger.info("putMapping controller ");
+
         return ReactiveSecurityContextHolder.getContext()
             .map(context -> (Long) context.getAuthentication().getPrincipal())
             .flatMap(userId -> formMono.flatMap(form -> {

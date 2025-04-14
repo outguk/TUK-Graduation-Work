@@ -2,7 +2,7 @@
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme'; // 경로는 너의 위치에 맞게 수정
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 // 로딩스피너(각 화면을 별도의 청크로 분리해 사용자가 방문하는 페이지만 로드하는 방식) 적용
 import LoadingSpinner from './components/LoadingSpinner';
 // 새로운 방식: lazy 로딩
@@ -32,7 +32,7 @@ function App() {
             <Route path="/profile" element={<UserProfilePage />} />
 
             {/* Analysis pages */}
-            <Route path="/analysis" element={<Navigate to="/analysis/pres-001" replace />} /> {/* Default to first presentation */}
+            <Route path="/analysis" element={<AnalysisDashboardPage />} />
             <Route path="/analysis/:presentationId" element={<AnalysisDashboardPage />} />
 
             {/* Detail analysis pages */}

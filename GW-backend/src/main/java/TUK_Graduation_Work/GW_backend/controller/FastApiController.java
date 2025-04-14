@@ -9,6 +9,8 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import TUK_Graduation_Work.GW_backend.service.FastApiClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,6 +22,7 @@ import java.util.Map;
 @RequestMapping("/spring/api") // 경로 통일
 public class FastApiController {
 
+    private static final Logger logger = LoggerFactory.getLogger(FastApiController.class);
     private final FastApiClient fastApiClient;
 
     public FastApiController(FastApiClient fastApiClient) {
@@ -81,6 +84,23 @@ public class FastApiController {
                     Map<String, Object> errorMap = new HashMap<>();
                     errorMap.put("message", "분석 결과 조회 실패: " + e.getMessage());
                     return Mono.just(errorMap);
+                });
+    }
+
+    @GetMapping("/get-analysis")
+    public Mono<Map> getAnalysis(@RequestParam("filename") String filename,
+                                                @RequestHeader("Authorization") String authorization) {
+        logger.info("Fetching analysis for filename: {}", filename);
+        return fastApiClient.getAnalysis(filename, authorization)
+                .map(response -> {
+                    logger.info("Successfully fetched analysis for filename: {}", filename);
+                    return response;
+                })
+                .onErrorResume(e -> {
+                    logger.error("Failed to fetch analysis for filename {}: {}", filename, e.getMessage());
+                    return Mono.just(Map.of(
+                            "error", "분석 데이터 조회 실패: " + e.getMessage()
+                    )).cast(Map.class);
                 });
     }
 }

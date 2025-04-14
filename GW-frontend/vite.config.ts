@@ -22,10 +22,16 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/upload': 'http://localhost:8080',
-      '/users': 'http://localhost:8080',
-      '/spring/api': 'http://localhost:8080',
-      '/fastapi/api': 'http://localhost:5000',
+      '/spring/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      },
+      '/users': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
   build: {

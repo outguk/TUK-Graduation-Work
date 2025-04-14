@@ -33,8 +33,13 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 설정 추가
             .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
             .authorizeExchange(exchanges -> exchanges
+                // 정적 자원 경로 인증 제외
+                .pathMatchers("/assets/**", "/vite.svg", "/favicon.ico").permitAll()
+                // 공개 API
                 .pathMatchers("/spring/api/users/new", "/spring/api/users/login").permitAll()
-                .pathMatchers("/spring/api/user/profile", "/spring/api/upload", "/spring/api/my-analyses").authenticated()
+                // 인증 필요한 API
+                .pathMatchers("/spring/api/user/profile", "/spring/api/upload", "/spring/api/my-analyses", "/spring/api/get-analysis").authenticated()
+                // 나머지 요청은 인증 없이 허용
                 .anyExchange().permitAll()
             )
             .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
