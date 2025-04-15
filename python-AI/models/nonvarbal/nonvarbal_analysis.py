@@ -51,7 +51,17 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
             ["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py"), video_name],
             cwd=PROJECT_ROOT, check=True
         )
-        
+        # PKL에 유효한 프레임이 있는지 검사
+        if not os.path.exists(result_pkl_path):
+            return {"status": "no_data", "message": "results.pkl 파일이 생성되지 않았습니다."}
+
+        import pickle
+        with open(result_pkl_path, "rb") as f:
+            pkl_data = pickle.load(f)
+            if len(pkl_data.get("annotations", [])) == 0:
+                print("ST-GCN++ 테스트 생략: 유효한 비언어적 행동 없음")
+                return {"status": "ok", "message": "유효한 비언어적 행동 없음", "results": []}
+            
         # Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)
         print("\n Step 4: ST-GCN++ 모델 테스트 실행 (test.py 실행)")
         test_command = [
