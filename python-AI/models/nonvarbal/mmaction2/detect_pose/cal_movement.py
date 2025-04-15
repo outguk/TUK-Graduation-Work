@@ -19,7 +19,7 @@ def calculate_movement(previous_keypoints, current_keypoints):
     mean_movement = np.mean(movement)
     return mean_movement
 
-def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=20.0):
+def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=40.0):
     """
     영상 이름 기반으로 JSON 키포인트를 읽고, PKL 변환
     - video_filename: 예) 'book'
