@@ -886,6 +886,20 @@
 
 // export default AnalysisDashboardPage;
 
+/**
+ * AnalysisDashboardPage.tsx
+ * 
+ * 백엔드 개발자 참고사항:
+ * 이 파일은 발표 분석 대시보드의 메인 페이지입니다.
+ * 좌측의 PresentationSidebar 컴포넌트를 통해 발표 목록을 표시하고,
+ * 선택된 발표의 분석 데이터를 차트와 카드로 보여줍니다.
+ * 
+ * 필요한 API 엔드포인트:
+ * 1. GET /spring/api/my-analyses - 사용자의 모든 발표 목록
+ * 2. GET /spring/api/get-analysis?filename={filename} - 특정 발표의 상세 분석 데이터
+ * 3. GET /spring/api/user/profile - 현재 로그인한 사용자 정보
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -920,6 +934,21 @@ import {
 import axios from 'axios';
 import PresentationSidebar from '../components/PresentationSidebar';
 
+/**
+ * 백엔드 개발자 참고사항:
+ * 인터페이스 정의입니다. API 응답 형식과 일치해야 합니다.
+ */
+interface PresentationItem {
+  id: string;        // 발표 고유 식별자 (filename)
+  title: string;     // 발표 제목 (filename에서 확장자 제거)
+  date: string;      // 발표 날짜 (YYYY.MM.DD)
+  duration: string;  // 발표 길이 (M:SS, 기본값 제공)
+}
+
+interface UserProfile {
+  name: string;      // 사용자 이름
+}
+
 interface PaceDataPoint {
   time: string;
   wpm: number;
@@ -944,6 +973,16 @@ const AnalysisDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { presentationId } = useParams<{ presentationId?: string }>();
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 상태 변수입니다.
+   * - presentations: 발표 목록 (PresentationSidebar로 전달)
+   * - userProfile: 사용자 정보 (PresentationSidebar로 전달)
+   * - selectedPresentationId: 현재 선택된 발표 ID
+   * - analysisData: 선택된 발표의 분석 데이터
+   */
+  const [presentations, setPresentations] = useState<PresentationItem[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile>({ name: '' });
   const [selectedPresentationId, setSelectedPresentationId] = useState<string | null>(presentationId || null);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [paceData, setPaceData] = useState<PaceDataPoint[]>([]);
@@ -954,6 +993,10 @@ const AnalysisDashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 발표 팁 배열입니다. 5초마다 하나씩 표시됩니다.
+   */
   const presentationTips = [
     "The core of a good presentation is clarity.",
     "Presenting is not about speaking, but connecting.",
@@ -970,6 +1013,10 @@ const AnalysisDashboardPage: React.FC = () => {
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [fadeTip, setFadeTip] = useState(true);
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 페이지 로드 시 콘텐츠 페이드인 애니메이션과 팁 회전 설정
+   */
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 300);
     return () => clearTimeout(timer);
@@ -986,8 +1033,15 @@ const AnalysisDashboardPage: React.FC = () => {
     return () => clearInterval(tipInterval);
   }, []);
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 발표 목록과 사용자 정보를 가져옵니다.
+   * - GET /spring/api/my-analyses: 발표 목록
+   * - GET /spring/api/user/profile: 사용자 프로필
+   * - 최초 로드 시 presentationId가 없으면 첫 번째 발표 선택
+   */
   useEffect(() => {
-    const fetchAnalysisData = async () => {
+    const fetchInitialData = async () => {
       setLoading(true);
       setError(null);
 
@@ -997,49 +1051,92 @@ const AnalysisDashboardPage: React.FC = () => {
           throw new Error('인증 토큰이 없습니다.');
         }
 
-        let response;
-        if (selectedPresentationId) {
-          response = await axios.get(`/spring/api/get-analysis`, {
-            params: { filename: selectedPresentationId },
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        } else {
-          response = await axios.get(`/spring/api/my-analyses`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (response.data.analyses && response.data.analyses.length > 0) {
-            const firstAnalysis = response.data.analyses[0];
-            setSelectedPresentationId(firstAnalysis.filename);
-            response = await axios.get(`/spring/api/get-analysis`, {
-              params: { filename: firstAnalysis.filename },
-              headers: { Authorization: `Bearer ${token}` },
-            });
-          } else {
-            throw new Error('분석 데이터가 없습니다.');
-          }
+        // 사용자 프로필 가져오기
+        const profileResponse = await axios.get('/spring/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUserProfile({ name: profileResponse.data.name });
+
+        // 발표 목록 가져오기
+        const analysesResponse = await axios.get('/spring/api/my-analyses', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const presentationsData: PresentationItem[] = analysesResponse.data.analyses.map((item: any) => ({
+          id: item.filename,
+          title: item.filename.split('.')[0],
+          date: new Date(item.timestamp).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).replace(/\//g, '.'),
+          duration: '0:45', // 백엔드에서 제공 시 대체
+        }));
+        setPresentations(presentationsData);
+
+        // presentationId가 없으면 첫 번째 발표 선택
+        if (!selectedPresentationId && presentationsData.length > 0) {
+          setSelectedPresentationId(presentationsData[0].id);
+          navigate(`/analysis/${presentationsData[0].id}`, { replace: true });
         }
+      } catch (err: any) {
+        setError(err.response?.data?.error || '초기 데이터를 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  /**
+   * 백엔드 개발자 참고사항:
+   * 선택된 발표 ID가 변경될 때 분석 데이터를 가져옵니다.
+   * - GET /spring/api/get-analysis?filename={filename}
+   * - 응답 데이터를 차트와 카드에 표시할 형식으로 가공
+   */
+  useEffect(() => {
+    const fetchAnalysisData = async () => {
+      if (!selectedPresentationId) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('인증 토큰이 없습니다.');
+        }
+
+        const response = await axios.get('/spring/api/get-analysis', {
+          params: { filename: selectedPresentationId },
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         const data: AnalysisData = response.data;
         setAnalysisData(data);
 
+        // 발표 속도 데이터 가공
         const pace: PaceDataPoint[] = data.speaking_speed?.segment_wpm.map((segment) => ({
           time: formatTime(segment.start),
           wpm: segment.wpm,
         })) || [];
         setPaceData(pace);
 
+        // 음량 데이터 가공
         const volume: VolumeDataPoint[] = data.volume_analysis?.segment_data.map((segment) => ({
           time: formatTime(segment.time_stamps[0]),
           db: segment.db,
         })) || [];
         setVolumeData(volume);
 
+        // 발표 길이 계산
         const maxTime = Math.max(
           ...data.speaking_speed?.segment_wpm.map((s) => s.end) || [0],
           ...data.volume_analysis?.segment_data.map((s) => s.time_stamps[1]) || [0]
         );
         setDuration(formatTime(maxTime));
 
+        // 전체 점수 계산
         const speakingScore = data.speaking_evaluation?.overall_score || 0;
         const volumeScore = data.volume_evaluation?.overall_score || 0;
         setOverallScore(Math.round((speakingScore + volumeScore) / 2));
@@ -1052,19 +1149,33 @@ const AnalysisDashboardPage: React.FC = () => {
     };
 
     fetchAnalysisData();
-  }, [selectedPresentationId]);
+  }, [selectedPresentationId, navigate]);
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 시간을 MM:SS 형식으로 포맷팅하는 유틸리티 함수
+   */
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * PresentationSidebar에서 발표 선택 시 호출
+   * URL을 업데이트하고 분석 데이터를 로드
+   */
   const handleSelectPresentation = (id: string) => {
     setSelectedPresentationId(id);
     navigate(`/analysis/${id}`, { replace: true });
   };
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 세부 분석 페이지로 이동하는 함수들
+   * 선택된 발표 ID를 URL 파라미터로 전달
+   */
   const handleNavigateToSpeed = () => {
     navigate(`/analysis/speed/${selectedPresentationId}`);
   };
@@ -1081,48 +1192,74 @@ const AnalysisDashboardPage: React.FC = () => {
     navigate(`/analysis/nonverbal/${selectedPresentationId}`);
   };
 
+  /**
+   * 백엔드 개발자 참고사항:
+   * 현재 발표 제목 표시
+   * 분석 데이터가 있으면 filename에서 제목 추출
+   */
   const currentPresentationTitle = analysisData?.filename.split('.')[0] || 'Presentation Analysis';
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: '#FFFFFF',
+      }}
+    >
+      {/* 
+       * 백엔드 개발자 참고사항:
+       * PresentationSidebar에 전달되는 props:
+       * - presentations: 발표 목록 (API에서 가져옴)
+       * - selectedPresentationId: 현재 선택된 발표 ID
+       * - onSelectPresentation: 발표 선택 핸들러
+       * - userProfile: 사용자 정보 (API에서 가져옴)
+       */}
       <PresentationSidebar
+        presentations={presentations}
         selectedPresentationId={selectedPresentationId}
         onSelectPresentation={handleSelectPresentation}
+        userProfile={userProfile}
       />
+
+      {/* Main content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           py: { xs: 4, md: 6 },
           px: { xs: 2, md: 4 },
-          background: '#FFFFFF',
+          marginLeft: '8%',
+          transition: 'margin-left 0.3s ease',
+          width: 'calc(100% - 8%)',
         }}
       >
         <Container maxWidth="xl">
+          {/* Header section */}
+          <Box sx={{ mb: 5 }}>
+            <Typography 
+              variant="h4" 
+              component="h1"
+              fontWeight={700}
+              sx={{ 
+                mb: 1,
+                position: 'relative',
+                display: 'inline-block'
+              }}
+            >
+              {currentPresentationTitle}
+            </Typography>
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{ mt: 3 }}
+            >
+              Your presentation video analysis is complete. Review your results below.
+            </Typography>
+          </Box>
+          
           <Fade in={showContent} timeout={1000}>
             <Box>
-              <Typography
-                variant="h4"
-                component="h1"
-                fontWeight={700}
-                sx={{
-                  mb: 5,
-                  position: 'relative',
-                  display: 'inline-block',
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    bottom: -8,
-                    left: 0,
-                    width: '60%',
-                    height: '4px',
-                    background: 'linear-gradient(to right, #000 50%, transparent 100%)',
-                  },
-                }}
-              >
-                {currentPresentationTitle}
-              </Typography>
-
               {error && (
                 <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
                   {error}
@@ -1147,349 +1284,593 @@ const AnalysisDashboardPage: React.FC = () => {
                   </Button>
                 </Box>
               ) : (
-                <>
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} md={6}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                          height: '100%',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '4px',
-                            background: '#000',
-                          },
-                        }}
-                      >
-                        <Typography variant="h6" component="h2" fontWeight={600} sx={{ mb: 3 }}>
-                          Speaking Pace (WPM)
+                <Grid container spacing={4}>
+                  {/* Left column: Summary + Tips */}
+                  <Grid item xs={12} md={3}>
+                    {/* Summary card */}
+                    <Card 
+                      elevation={0}
+                      sx={{ 
+                        mb: 4, 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        height: '220px',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 3 }}>
+                        <Typography 
+                          variant="h6" 
+                          component="h2"
+                          fontWeight={600}
+                          sx={{ mb: 3 }}
+                        >
+                          Summary
                         </Typography>
-                        <Box sx={{ height: 200, width: '100%' }}>
-                          <ResponsiveContainer>
-                            <LineChart
-                              data={paceData}
-                              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="time" />
-                              <YAxis domain={[80, 200]} />
-                              <Tooltip
-                                formatter={(wpm) => [`${wpm} WPM`, 'Speaking Pace']}
-                                contentStyle={{
-                                  backgroundColor: '#fff',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                  border: 'none',
-                                }}
-                              />
-                              <ReferenceLine y={110} stroke="#999" strokeDasharray="3 3" />
-                              <ReferenceLine y={130} stroke="#999" strokeDasharray="3 3" />
-                              <Line
-                                type="monotone"
-                                dataKey="wpm"
-                                stroke="#000"
-                                strokeWidth={3}
-                                dot={{ r: 4 }}
-                                activeDot={{
-                                  r: 6,
-                                  strokeWidth: 1,
-                                  stroke: '#FFF',
-                                }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Recommended: 110-130 WPM
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ width: '50%' }}>
+                            Total Duration
                           </Typography>
-                          <Button
-                            variant="text"
-                            size="small"
-                            onClick={handleNavigateToSpeed}
-                            sx={{ fontWeight: 600 }}
-                          >
-                            View Details
-                          </Button>
-                        </Box>
-                      </Paper>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                          height: '100%',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '4px',
-                            background: '#000',
-                          },
-                        }}
-                      >
-                        <Typography variant="h6" component="h2" fontWeight={600} sx={{ mb: 3 }}>
-                          Volume (dB)
-                        </Typography>
-                        <Box sx={{ height: 200, width: '100%' }}>
-                          <ResponsiveContainer>
-                            <LineChart
-                              data={volumeData}
-                              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="time" />
-                              <YAxis domain={[30, 90]} />
-                              <Tooltip
-                                formatter={(db) => [`${db} dB`, 'Volume']}
-                                contentStyle={{
-                                  backgroundColor: '#fff',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                  border: 'none',
-                                }}
-                              />
-                              <ReferenceLine y={65} stroke="#999" strokeDasharray="3 3" />
-                              <ReferenceLine y={70} stroke="#999" strokeDasharray="3 3" />
-                              <Line
-                                type="monotone"
-                                dataKey="db"
-                                stroke="#000"
-                                strokeWidth={3}
-                                dot={{ r: 4 }}
-                                activeDot={{
-                                  r: 6,
-                                  strokeWidth: 1,
-                                  stroke: '#FFF',
-                                }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Recommended: 65-70 dB
+                          <Typography variant="h5" fontWeight={700} sx={{ width: '50%', textAlign: 'right' }}>
+                            {duration}
                           </Typography>
-                          <Button
-                            variant="text"
-                            size="small"
-                            onClick={handleNavigateToVolume}
-                            sx={{ fontWeight: 600 }}
-                          >
-                            View Details
-                          </Button>
                         </Box>
-                      </Paper>
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 3,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                          height: '100%',
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="h6" fontWeight={600} gutterBottom>
+                        
+                        <Divider sx={{ my: 2 }} />
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ width: '50%' }}>
                             Overall Score
                           </Typography>
-                          <Box sx={{ textAlign: 'center', py: 2 }}>
-                            <Typography
-                              variant="h3"
-                              fontWeight={700}
-                              sx={{
-                                color: overallScore >= 80 ? '#4caf50' : overallScore >= 60 ? '#ff9800' : '#f44336',
+                          <Typography 
+                            variant="h4" 
+                            fontWeight={700} 
+                            sx={{ 
+                              width: '50%', 
+                              textAlign: 'right',
+                              color: '#000'
+                            }}
+                          >
+                            {overallScore}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Tips card */}
+                    <Card 
+                      elevation={0}
+                      sx={{ 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        height: 'calc(100% - 220px - 32px)',
+                        minHeight: '200px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Typography 
+                          variant="h6" 
+                          component="h2"
+                          fontWeight={600}
+                          sx={{ mb: 3 }}
+                        >
+                          Presentation Tips
+                        </Typography>
+                        
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            flexGrow: 1,
+                            px: 2
+                          }}
+                        >
+                          <Fade in={fadeTip} timeout={500}>
+                            <Typography 
+                              variant="h6" 
+                              align="center"
+                              sx={{ 
+                                fontWeight: 500,
+                                fontStyle: 'italic',
+                                lineHeight: 1.6
                               }}
                             >
-                              {overallScore}
+                              "{presentationTips[currentTipIndex]}"
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              / 100
-                            </Typography>
-                          </Box>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            This score reflects the combined evaluation of your speaking pace and volume.
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 3,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                          height: '100%',
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="h6" fontWeight={600} gutterBottom>
-                            Presentation Duration
-                          </Typography>
-                          <Box sx={{ textAlign: 'center', py: 2 }}>
-                            <Typography variant="h3" fontWeight={700}>
-                              {duration}
-                            </Typography>
-                          </Box>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            The total duration of your presentation based on the analyzed video.
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 3,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                          height: '100%',
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="h6" fontWeight={600} gutterBottom>
-                            Presentation Tip
-                          </Typography>
-                          <Box sx={{ minHeight: 60, py: 2, textAlign: 'center' }}>
-                            <Fade in={fadeTip} timeout={500}>
-                              <Typography variant="body1" fontStyle="italic">
-                                "{presentationTips[currentTipIndex]}"
-                              </Typography>
-                            </Fade>
-                          </Box>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            Tips rotate every few seconds to provide fresh insights for your next presentation.
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
+                          </Fade>
+                        </Box>
+                      </CardContent>
+                    </Card>
                   </Grid>
+                  
+                  {/* Middle column: Charts */}
+                  <Grid item xs={12} md={6}>
+                    {/* Speaking pace chart */}
+                    <Paper 
+                      elevation={0}
+                      sx={{ 
+                        p: 3, 
+                        mb: 4, 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                          transform: 'translateY(-4px)'
+                        },
+                        height: '48%',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                      onClick={handleNavigateToSpeed}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Speaking pace analysis details"
+                    >
+                      <Typography variant="h6" component="h2" fontWeight={600}>
+                        Present Speed (WPM)
+                      </Typography>
+                      
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          mb: 2
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            width: '240px',
+                            height: '160px',
+                            margin: '0 auto',
+                            mt: 2
+                          }}
+                        >
+                          {/* Background gauge */}
+                          <Box
+                            component="svg"
+                            viewBox="-5 -5 110 60"
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              transform: 'translateY(-10px) scale(1.3)'
+                            }}
+                          >
+                            <path
+                              d="M 10,50 A 40,40 0 0,1 90,50"
+                              fill="none"
+                              stroke="#f5f5f5"
+                              strokeWidth="12"
+                              strokeLinecap="butt"
+                            />
+                            <text x="0" y="20" fontSize="4" fill="#666" textAnchor="middle">
+                              0
+                            </text>
+                            <text x="50" y="55" fontSize="4" fill="#666" textAnchor="middle">
+                              100
+                            </text>
+                            <text x="100" y="20" fontSize="4" fill="#666" textAnchor="middle">
+                              200
+                            </text>
+                          </Box>
 
-                  <Box sx={{ mt: 6 }}>
-                    <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-                      Detailed Analysis
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          startIcon={<GraphicEqIcon />}
-                          onClick={handleNavigateToSpeed}
-                          sx={{
-                            borderRadius: 8,
-                            py: 2,
-                            borderColor: '#000',
-                            color: '#000',
-                            '&:hover': {
-                              borderColor: '#333',
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                            },
+                          {/* Active gauge */}
+                          <Box
+                            component="svg"
+                            viewBox="-5 -5 110 60"
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              transform: 'translateY(-10px) scale(1.3)'
+                            }}
+                          >
+                            <path
+                              d={`M 10,50 A 40,40 0 0,1 ${(() => {
+                                const avgWpm = paceData.reduce((sum, item) => sum + item.wpm, 0) / (paceData.length || 1);
+                                const percentage = Math.min(Math.max(avgWpm / 200, 0), 1);
+                                const theta = (180 - 180 * percentage) * (Math.PI / 180);
+                                const cx = 50;
+                                const cy = 50;
+                                const r = 40;
+                                const x = cx + r * Math.cos(theta);
+                                const y = cy - r * Math.sin(theta);
+                                return `${x},${y}`;
+                              })()}`}
+                              fill="none"
+                              stroke="#AAD500"
+                              strokeWidth="12"
+                              strokeLinecap="butt"
+                            />
+                          </Box>
+
+                          {/* Center text */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: '60px',
+                              left: 0,
+                              width: '100%',
+                              textAlign: 'center'
+                            }}
+                          >
+                            <Typography
+                              variant="h2"
+                              component="div"
+                              fontWeight="700"
+                              sx={{ lineHeight: 1 }}
+                            >
+                              {Math.round(
+                                paceData.reduce((sum, item) => sum + item.wpm, 0) / (paceData.length || 1)
+                              )}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              words/min
+                            </Typography>
+                          </Box>
+
+                          {/* Range labels */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: '-10px',
+                              width: '110%',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              px: 2
+                            }}
+                          >
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: -3 }}>
+                              slow
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              fast
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      {/* Pace evaluation message */}
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          textAlign: 'center',
+                          fontWeight: 500,
+                          mb: 4,
+                          mt: 2,
+                          fontSize: '1rem'
+                        }}
+                      >
+                        {(() => {
+                          const avgWpm = paceData.reduce((sum, item) => sum + item.wpm, 0) / (paceData.length || 1);
+                          if (avgWpm < 100) return "Your pace is a bit slow. Try to speak slightly faster.";
+                          if (avgWpm > 150) return "Your pace is a bit fast. Try to slow down slightly.";
+                          return "Your pace is just right. Keep it up!";
+                        })()}
+                      </Typography>
+                    </Paper>
+                    
+                    {/* Volume chart */}
+                    <Paper 
+                      elevation={0}
+                      sx={{ 
+                        p: 3, 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                          transform: 'translateY(-4px)'
+                        },
+                        height: '48%',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                      onClick={handleNavigateToVolume}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Volume analysis details"
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" component="h2" fontWeight={600}>
+                          Volume Analysis (dB)
+                        </Typography>
+                        <GraphicEqIcon />
+                      </Box>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Average volume: {volumeData.length 
+                          ? (volumeData.reduce((sum, item) => sum + item.db, 0) / volumeData.length).toFixed(1) 
+                          : "0"} dB (Optimal range: 60-75 dB)
+                      </Typography>
+                      
+                      <Box sx={{ height: '200px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={volumeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="time" />
+                            <YAxis domain={[50, 85]} />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#fff', 
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                border: 'none' 
+                              }} 
+                            />
+                            <ReferenceLine y={60} stroke="#AAAAAA" strokeDasharray="3 3" />
+                            <ReferenceLine y={75} stroke="#AAAAAA" strokeDasharray="3 3" />
+                            <Line 
+                              type="monotone" 
+                              dataKey="db" 
+                              stroke="#000" 
+                              strokeWidth={3} 
+                              dot={{ r: 4 }}
+                              activeDot={{ r: 6, strokeWidth: 1, stroke: '#FFF' }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                  
+                  {/* Right column: Detail links */}
+                  <Grid item xs={12} md={3}>
+                    {/* Script analysis card */}
+                    <Card 
+                      elevation={0}
+                      sx={{ 
+                        mb: 4, 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        height: '48%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                          transform: 'translateY(-4px)'
+                        },
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                      onClick={handleNavigateToScript}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Script analysis details"
+                    >
+                      <CardContent sx={{ p: 4, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Box 
+                          sx={{ 
+                            mb: 3,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 0, 0, 0.05)',
+                            mx: 'auto',
+                            transition: 'all 0.3s ease'
                           }}
                         >
-                          Speaking Pace
-                        </Button>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          startIcon={<GraphicEqIcon />}
-                          onClick={handleNavigateToVolume}
-                          sx={{
-                            borderRadius: 8,
-                            py: 2,
-                            borderColor: '#000',
-                            color: '#000',
-                            '&:hover': {
-                              borderColor: '#333',
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                          }}
-                        >
-                          Volume
-                        </Button>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          startIcon={<TextSnippetIcon />}
-                          onClick={handleNavigateToScript}
-                          sx={{
-                            borderRadius: 8,
-                            py: 2,
-                            borderColor: '#000',
-                            color: '#000',
-                            '&:hover': {
-                              borderColor: '#333',
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                          }}
+                          <TextSnippetIcon sx={{ fontSize: 40, color: '#000' }} />
+                        </Box>
+                        
+                        <Typography 
+                          variant="h5" 
+                          component="h2" 
+                          align="center"
+                          fontWeight={600}
+                          sx={{ mb: 2 }}
                         >
                           Script Analysis
-                        </Button>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          startIcon={<PersonOutlineIcon />}
-                          onClick={handleNavigateToNonverbal}
-                          sx={{
-                            borderRadius: 8,
-                            py: 2,
-                            borderColor: '#000',
-                            color: '#000',
-                            '&:hover': {
-                              borderColor: '#333',
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                            },
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body1" 
+                          align="center"
+                          color="text.secondary"
+                          sx={{ mb: 3 }}
+                        >
+                          Review analysis of your presentation script and verbal expressions.
+                        </Typography>
+                        
+                        <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
+                          <Button 
+                            variant="outlined" 
+                            color="primary"
+                            size="large"
+                            sx={{ 
+                              borderRadius: 8,
+                              px: 3,
+                              py: 1,
+                              borderColor: '#000',
+                              color: '#000',
+                              '&:hover': {
+                                borderColor: '#333',
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                              }
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Nonverbal analysis card */}
+                    <Card 
+                      elevation={0}
+                      sx={{ 
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        height: '48%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                          transform: 'translateY(-4px)'
+                        },
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '4px',
+                          background: '#000'
+                        }
+                      }}
+                      onClick={handleNavigateToNonverbal}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Nonverbal analysis details"
+                    >
+                      <CardContent sx={{ p: 4, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Box 
+                          sx={{ 
+                            mb: 3,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 0, 0, 0.05)',
+                            mx: 'auto',
+                            transition: 'all 0.3s ease'
                           }}
                         >
+                          <PersonOutlineIcon sx={{ fontSize: 40, color: '#000' }} />
+                        </Box>
+                        
+                        <Typography 
+                          variant="h5" 
+                          component="h2" 
+                          align="center"
+                          fontWeight={600}
+                          sx={{ mb: 2 }}
+                        >
                           Nonverbal Analysis
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                </>
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body1" 
+                          align="center"
+                          color="text.secondary"
+                          sx={{ mb: 3 }}
+                        >
+                          Review analysis of your posture, eye contact, gestures, and other nonverbal elements.
+                        </Typography>
+                        
+                        <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
+                          <Button 
+                            variant="outlined" 
+                            color="primary"
+                            size="large"
+                            sx={{ 
+                              borderRadius: 8,
+                              px: 3,
+                              py: 1,
+                              borderColor: '#000',
+                              color: '#000',
+                              '&:hover': {
+                                borderColor: '#333',
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                              }
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
               )}
             </Box>
           </Fade>
-
-          <Box
+          
+          {/* Footer */}
+          <Box 
             component="footer"
-            sx={{
-              mt: 8,
-              textAlign: 'center',
+            sx={{ 
+              mt: 8, 
+              textAlign: 'center', 
               borderTop: '1px solid #eee',
               pt: 4,
               pb: 2,
-              color: '#666',
+              color: '#666'
             }}
           >
             <Typography variant="body2">
