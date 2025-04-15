@@ -17,6 +17,11 @@ from models.vocalization.vocalization_analysis import extract_audio, transcribe_
 from models.nonvarbal.nonvarbal_analysis import video_nonverbal_analysis
 from models.vocalization.vocalization_evaluate import evaluate_speaking_speed, evaluate_volume
 from models.script.script_feedback_korcen import load_custom_badwords, analyze_script, evaluate_length
+from models.vocalization.util_functions import (
+    change_sampling_rate,
+    remove_noise,
+    save_filtered_audio
+)
 from konlpy.tag import Okt, Kkma
 from mongodb import collection
 
@@ -104,7 +109,40 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_
     logging.info(f"Video uploaded: {file_path}")
     audio_path = file_path.replace(".mp4", ".wav")
     await extract_audio(file_path, audio_path)
+
+    # 전처리 임시 경로 설정
+    temp_resampled = audio_path.replace(".wav", "_resampled.wav")
+    temp_denoised = audio_path.replace(".wav", "_denoised.wav")
+    temp_filtered = audio_path.replace(".wav", "_filtered.wav")
+
+    try:
+        # 1단계: 샘플링 레이트 16kHz로 변경
+        change_sampling_rate(audio_path, 16000, temp_resampled)
+
+        # 2단계: 노이즈 제거
+        remove_noise(temp_resampled, temp_denoised)
+
+        # 3단계: 대역 통과 필터 적용
+        save_filtered_audio(temp_denoised, temp_filtered)
+
+        # 최종 파일 audio_path로 덮어쓰기 (temp_filtered 파일을 이동)
+        os.replace(temp_filtered, audio_path)
+    except Exception as e:
+        logging.error("오디오 전처리 중 오류 발생: %s", e)
+        raise
+    finally:
+        # 임시 파일 삭제 (최종 파일(audio_path)과 경로가 동일하지 않은 경우에만 삭제)
+        for temp_path in [temp_resampled, temp_denoised, temp_filtered]:
+            if os.path.abspath(temp_path) != os.path.abspath(audio_path) and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                    logging.info(f"🧹 임시 파일 삭제됨: {temp_path}")
+                except Exception as e:
+                    logging.warning(f"⚠️ 임시 파일 삭제 실패: {temp_path} | {e}")
+
+
     transcription = await transcribe_audio(audio_path)
+
     script_txt_path = os.path.join(BASE_DIR, "output_transcription.txt")
     if not os.path.exists(script_txt_path):
         raise HTTPException(status_code=500, detail="Transcription file not found")
@@ -117,14 +155,18 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_
     custom_badwords = load_custom_badwords(badwords_path)
     script_stats = analyze_script(sentences, tagger, kkma, custom_badwords)
     actual_chars, min_chars, max_chars, length_feedback = evaluate_length(text, speech_minutes=3)
+
     loop = asyncio.get_running_loop()
     speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription, audio_path)
     volume_task = loop.run_in_executor(None, analyze_volume, audio_path)
     speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
+
     absolute_file_path = os.path.abspath(file_path)
     nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
+
     speed_score = evaluate_speaking_speed(speaking_speed)
     volume_score = evaluate_volume(volume_analysis)
+    
     document = {
         "user_id": user_id,
         "filename": file.filename,

@@ -9,6 +9,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import asyncio
+import math
 from pydub import AudioSegment, silence
 from collections import Counter
 from cmudict import entries as cmu_dict
@@ -16,9 +17,6 @@ from cmudict import entries as cmu_dict
 # 프로젝트 루트를 sys.path에 추가(경로 검색을 쉽게 하기 위해)
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
-
-# 디렉토리 내 필요 모듈 import
-from models.vocalization.util_functions import process_audio_chunks, change_sampling_rate
 
 # 로깅 설정
 logging.basicConfig(
@@ -71,133 +69,175 @@ async def transcribe_audio(audio_file, model_name="base"):
 
 # Step 3: Analyze Speaking Speed (Words per Minute)
 # 말하기 속도 분석 (분당 단어 수 계산) -> 최적화 및 개선 필요(무음 구간 추출 부분 모듈화화)
-def analyze_speaking_speed(transcription, audio_file_path, min_silence_len=1000, silence_thresh=-40):
+def analyze_speaking_speed(transcription):
     """
-    util의 음성 구간 추정 함수를 활용해 말하기 속도를 계산하는 함수.
-
-    Returns:
-        dict: 전체 WPM, 발화 구간별 WPM, 총 발화 시간.
+    Whisper 대본 세그먼트를 기반으로 발화 속도를 분석하는 함수입니다.
+    
+    매개변수:
+      transcription (dict):
+          Whisper가 생성한 대본입니다. "segments" 키가 포함되어 있어야 하며,
+          각 세그먼트는 "start", "end", "text" 필드를 포함하는 dict여야 합니다.
+          
+    반환값:
+      dict: 다음 키들을 포함하는 딕셔너리로, 원래 함수의 반환 형식과 일치합니다.
+          - "overall_wpm": 전체 단어 수를 (전체 발화 시간(초)에 대해 60을 곱한 값)으로 계산한 전체 발화 속도 (WPM).
+          - "total_spoken_time": 모든 세그먼트의 발화 시간 합 (초 단위).
+          - "segment_wpm": 각 세그먼트별 발화 속도 정보를 담은 딕셔너리 리스트로, 각 딕셔너리는 다음을 포함합니다.
+                "start": 해당 세그먼트의 시작 시간 (초, 소수점 둘째 자리 반올림)
+                "end": 해당 세그먼트의 종료 시간 (초, 소수점 둘째 자리 반올림)
+                "wpm": 해당 세그먼트의 발화 속도 (소수점 둘째 자리 반올림)
+                "words": 해당 세그먼트의 대본 텍스트
+          
+    예제:
+      test4.txt :contentReference[oaicite:0]{index=0}에서 읽어들인 대본을 사용하여 함수가 각 세그먼트를 순회하면서
+      해당 구간의 길이와 단어 수를 계산하고 발화 속도를 도출합니다.
     """
+    try:
+        # 대본에서 "segments" 목록을 가져옵니다.
+        segments = transcription.get("segments", [])
+        
+        total_time = 0.0    # 모든 세그먼트의 발화 시간을 누적합니다.
+        total_words = 0     # 모든 세그먼트의 전체 단어 수.
+        segment_results = []  # 각 세그먼트별 WPM 세부 정보를 저장할 리스트입니다.
 
-    # Step 1: 무음 무간 추정 함수를 통해 발화 구간 불러오기기
-    audio, non_silent_chunks = process_audio_chunks(audio_file_path, min_silence_len, silence_thresh)
+        # Whisper 대본의 각 세그먼트를 직접 처리합니다.
+        for seg in segments:
+            # 세그먼트의 시작과 종료 시간을 가져옵니다 (초 단위)
+            start = seg.get("start", 0.0)
+            end = seg.get("end", 0.0)
+            duration = end - start
 
-    # Step 2: 총 발화 시간 계산
-    total_spoken_time = sum(end - start for start, end in non_silent_chunks)
+            # 길이가 0 이하인 세그먼트는 건너뜁니다.
+            if duration <= 0:
+                continue
 
-    # Step 3: 말하기 속도 계산
-    words = transcription['text'].split() # 스크립트의 단어 분리
-    num_words = len(words) # 전체 단어 수
-    overall_wpm = (num_words / total_spoken_time) * 60 if total_spoken_time > 0 else 0 # 전체 발화 구간 평균 WPM
+            # 해당 세그먼트의 대본 텍스트를 가져와서 단어로 분리합니다.
+            text = seg.get("text", "").strip()
+            words_list = text.split()
+            num_words = len(words_list)
 
-    # Step 4: 발화 구간별 분석
-    segment_wpm = []
-    word_index = 0
-    word_time = total_spoken_time / num_words if num_words > 0 else 0
+            # 총 발화 시간과 단어 수를 누적합니다.
+            total_time += duration
+            total_words += num_words
 
-    for start, end in non_silent_chunks: # 각 발화 구간 별
-        segment_duration = end - start # 구간별 발화 시간 계산
-        segment_words = int(segment_duration / word_time) if word_time > 0 else 1 # 구간별 평균 단어 수(발화 시간이 짧게 측정돼 0이 되는 경우 1로 기본값 설정)
-        wpm = round((segment_words / segment_duration) * 60,2) if segment_duration > 0 else 0 # WPM 계산
-        # 구간별 결과 저장
-        segment_wpm.append({
-            "start": round(start,2),
-            "end": round(end,2),
-            "wpm": wpm,
-            "words": " ".join(words[word_index:word_index + segment_words])
-        })
-        word_index += segment_words
+            # 세그먼트의 발화 속도(WPM)을 계산합니다.
+            seg_wpm = (num_words / duration) * 60 if duration > 0 else 0
 
-    # Step 5: 결과 반환
-    results= {
-        "overall_wpm": round(overall_wpm,2),
-        "total_spoken_time": round(total_spoken_time,2),
-        "segment_wpm": segment_wpm # 구간별 wpm -> 나중에 구간 별 피드백 용
-    }
-    logging.info(f"속도 분석 결과 -> {results}")
-    return results
+            # 계산된 값을 소수점 두 자리로 반올림하여 저장합니다.
+            segment_results.append({
+                "start": round(start, 2),
+                "end": round(end, 2),
+                "wpm": round(seg_wpm, 2),
+                "words": " ".join(words_list)
+            })
+
+        # 전체 세그먼트에 대한 전체 발화 속도를 계산합니다.
+        overall_wpm = (total_words / total_time) * 60 if total_time > 0 else 0
+
+        # 최종 결과를 기존 반환 형식에 맞게 구성합니다.
+        results = {
+            "overall_wpm": round(overall_wpm, 2),
+            "total_spoken_time": round(total_time, 2),
+            "segment_wpm": segment_results
+        }
+        
+        logging.info(f"업데이트된 발화 속도 분석 결과 -> {results}")
+        return results
+    
+    except Exception as e:
+        logging.error(f"말하기 속도 분석 중 오류 발생: {e}")
+        raise
 
 
 # Step 4: Volume Analysis
 # 음량 분석
-def analyze_volume(audio_file_path, min_silence_len=1000, silence_thresh=-40):
+def analyze_volume(transcription, audio_file_path):
     """
-    오디오 파일의 음성 구간별 음량(RMS 및 데시벨)을 분석하고 시각화.
-
+    오디오 파일의 각 구간별 음량(RMS 및 데시벨)을 Whisper STT 반환 데이터의 세그먼트와 
+    기존 오디오 파일을 이용하여 분석하는 함수입니다.
+    
     매개변수:
-        file_path (str): 오디오 파일 경로.
-        min_silence_len (int): 무음으로 간주할 최소 길이 (ms).
-        silence_thresh (int): 무음으로 간주할 데시벨 임계값. -> 최적이 무엇일 지 생각 필요
-
+      transcription (dict):
+          Whisper가 반환한 대본으로, "segments" 배열을 포함하며 각 세그먼트는 
+          "start", "end", "text" 필드를 가집니다.
+      audio_file_path (str):
+          원본 오디오 파일 경로.
+          
     반환값:
-        dict: 시간 구간, RMS 값, 데시벨 값의 리스트.
+      dict: 다음 키들을 포함하는 결과 딕셔너리:
+          - "segment_data": 각 구간별 분석 결과 리스트, 각 항목은
+                "time_stamps": (시작, 종료) (초 단위),
+                "rms": 구간 RMS (소수점 둘째 자리 반올림),
+                "db": 구간 데시벨 값 (소수점 둘째 자리 반올림)
+          - "mean_rms": 모든 구간에 대한 평균 RMS (소수점 둘째 자리 반올림)
+          - "mean_db": 평균 RMS를 바탕으로 계산한 평균 데시벨 (소수점 둘째 자리 반올림)
     """
     try:
-        # Step 1: 무음 무간 추정 함수를 통해 발화 구간 불러오기
-        audio, non_silent_chunks = process_audio_chunks(audio_file_path, min_silence_len, silence_thresh)
-
-        # Step 2. 자료 구조 정의
-        '''각 음성 구간(non_silent_chunks)에 대해 음량 분석'''
-        segment_data=[] # 각 시간 구간 별 정보 저장 리스트
-        rms_values = [] # 각 구간의 RMS 값. (dB 변환에 필요)
-        db_values = [] # 각 구간의 데시벨 값.
-
-        # Step 3. 발화 구간 별 음량 분석
-        for start, end in non_silent_chunks:
-            segment = audio[int(start * 1000):int(end * 1000)]# 시작과 끝 밀리초를 사용하여 해당 구간의 오디오 데이터를 추출
-            raw_data = np.array(segment.get_array_of_samples()) # 오디오 데이터를 샘플 값(PCM 데이터)로 변환하여 NumPy 배열로 가져옴
-            # 빈 구간 처리 (소리가 비어있다면 분석할 필요 x)
-            if len(raw_data) == 0:
-                continue 
-            # NaN 및 Infinity 값 처리 (Why?)
-            if np.isnan(raw_data).any() or np.isinf(raw_data).any():
-                logging.warning(f"NaN 또는 Infinity 값 감지: {start}ms - {end}ms 구간을 건너뜁니다.")
-                continue
-          
-            rms = np.sqrt(np.mean(raw_data**2)) #
-            db = 20 * np.log10(rms + 1e-10)
-
-            # 각 구간 별 결과 저장
-            segment_data.append({
-                "time_stamps":(start,end),
-                "rms":round(rms,2),
-                "db":round(db,2)
-            })
-
-            # Step 4. 전체 평균 음량 계산
-            if rms_values:
-                mean_rms = np.mean(rms_values)  # RMS 평균
-                mean_db = 20 * np.log10(mean_rms + 1e-10)  # 평균 dB 변환
-            else:
-                mean_rms = 0
-                mean_db = -np.inf  # 평균을 구할 데이터가 없으면 -∞ dB 처리
+        # 오디오 파일을 불러옵니다.
+        audio = AudioSegment.from_file(audio_file_path)
+        logging.info(f"오디오 로드 완료: {audio_file_path}")
+        
+        # Whisper 대본에서 세그먼트 정보를 가져옵니다.
+        segments = transcription.get("segments", [])
+        if not segments:
+            raise ValueError("STT 반환 데이터에 'segments' 정보가 없습니다.")
+        
+        segment_data = []  # 각 구간별 결과를 저장할 리스트
+        rms_values = []    # 각 구간의 RMS 값들을 저장
+        
+        # 각 세그먼트에 대해 오디오 구간을 추출하고 음량(RMS, 데시벨) 계산
+        for seg in segments:
+            start = seg.get("start", 0.0)
+            end = seg.get("end", 0.0)
+            duration = end - start
             
-            rms_values.append(round(rms,2))
-            db_values.append(round(db,2))
-
-        # # 4. 결과 시각화 (나중에 조정 필요)
-        # avg_times = [(start + end) / 2 for start, end in time_stamps]
-
-        # plt.figure(figsize=(10, 6))
-        # plt.plot(avg_times, db_values, marker='o', label="Volume (dB)")
-        # plt.xlabel("Time (s)")
-        # plt.ylabel("Volume (dB)")
-        # plt.title("Segment-wise Volume Analysis")
-        # plt.grid()
-        # plt.legend()
-        # plt.show()
-
-        # 5. 결과 반환(각 구간별 결과가 저장됨)
+            # 구간 길이가 양수인 경우에만 계산
+            if duration <= 0:
+                continue
+            
+            # pydub는 단위가 밀리초이므로 변환
+            start_ms = int(start * 1000)
+            end_ms = int(end * 1000)
+            
+            segment_audio = audio[start_ms:end_ms]
+            raw_data = np.array(segment_audio.get_array_of_samples())
+            
+            # 해당 구간에 오디오 데이터가 없는 경우 건너뜀
+            if len(raw_data) == 0:
+                continue
+            
+            # RMS 계산 및 데시벨 변환
+            rms = math.sqrt(np.mean(raw_data.astype(np.float64) ** 2))
+            db = 20 * math.log10(rms + 1e-10)
+            
+            # 구간별 결과 저장 (소수점 둘째 자리 반올림)
+            segment_data.append({
+                "time_stamps": (round(start, 2), round(end, 2)),
+                "rms": round(rms, 2),
+                "db": round(db, 2)
+            })
+            rms_values.append(rms)
+        
+        # 전체 평균 계산
+        if rms_values:
+            mean_rms = np.mean(rms_values)
+            mean_db = 20 * math.log10(mean_rms + 1e-10)
+        else:
+            mean_rms = 0
+            mean_db = -math.inf
+        
         result = {
             "segment_data": segment_data,
-            "mean_rms": round(mean_rms,2),
-            "mean_db": round(mean_db,2)
+            "mean_rms": round(mean_rms, 2),
+            "mean_db": round(mean_db, 2)
         }
+        
         logging.info(f"음량 분석 결과 -> {result}")
         return result
     
     except Exception as e:
-        logging.info("예상치 못한 오류가 발생했습니다.")
+        logging.error(f"음량 분석 중 오류 발생: {e}")
+        raise
 
 # Example Usage
 # 예제 실행

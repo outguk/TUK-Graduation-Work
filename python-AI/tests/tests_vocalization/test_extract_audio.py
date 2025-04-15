@@ -10,7 +10,7 @@ from models.vocalization.vocalization_analysis import extract_audio
 
 def test_extract_audio():
     # 1. 테스트용 동영상 파일 경로
-    video_file = "tests/test_video/test1.mp4"  # 테스트용 동영상 (다시 가져와야 함)
+    video_file = "tests/test_video/test.mp4"  # 테스트용 동영상 (다시 가져와야 함)
     output_audio_file = "tests/test_video/test1_audio.wav"  # 출력 오디오 경로
 
     # 2. 함수 실행
