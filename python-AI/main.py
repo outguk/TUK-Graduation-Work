@@ -157,8 +157,8 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_
     actual_chars, min_chars, max_chars, length_feedback = evaluate_length(text, speech_minutes=3)
 
     loop = asyncio.get_running_loop()
-    speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription, audio_path)
-    volume_task = loop.run_in_executor(None, analyze_volume, audio_path)
+    speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription)
+    volume_task = loop.run_in_executor(None, analyze_volume, transcription, audio_path)
     speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
 
     absolute_file_path = os.path.abspath(file_path)
