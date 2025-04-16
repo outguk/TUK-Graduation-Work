@@ -51,6 +51,20 @@ def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=40.
             json_file = json_files[i + j]
             with open(os.path.join(json_dir, json_file), 'r') as f:
                 data = json.load(f)
+            
+             # ✅ 디버깅 코드 시작
+            if "keypoints" not in data:
+                print(f"[❗오류] '{json_file}' → keypoints 키 없음 → 건너뜀")
+                continue
+
+            keypoints = np.array(data["keypoints"])
+
+            if keypoints.ndim != 2 or keypoints.shape[1] < 2:
+                print(f"[❗오류] '{json_file}' → keypoints shape 이상함: {keypoints.shape} → 건너뜀")
+                continue
+
+            print(f"[✅ 정상] '{json_file}' → keypoints shape: {keypoints.shape}")
+            # ✅ 디버깅 코드 끝
 
             keypoints = np.array(data["keypoints"])
             coordinates = keypoints[:, :2].astype(int)
@@ -65,7 +79,23 @@ def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=40.
             if original_shape is None:
                 original_shape = data.get("original_shape", (1080, 1920))
 
-        movement = calculate_movement(np.array(keypoints_list[:-1]), np.array(keypoints_list[1:]))
+                # keypoints가 2개 미만이면 분석 스킵
+        if len(keypoints_list) < 2:
+            print(f"⚠️ 키포인트 부족: {len(keypoints_list)}개 → 건너뜀")
+            continue
+
+        # 변환 및 차원 검사
+        arr1 = np.array(keypoints_list[:-1])
+        arr2 = np.array(keypoints_list[1:])
+
+        if arr1.ndim != 3 or arr2.ndim != 3:
+            print(f"⚠️ 차원 이상 arr1: {arr1.shape}, arr2: {arr2.shape} → 건너뜀")
+            continue
+
+        # 변화량 계산
+        movement = calculate_movement(arr1, arr2)
+
+        # movement = calculate_movement(np.array(keypoints_list[:-1]), np.array(keypoints_list[1:]))
         movement_values.append(movement)
 
         should_save = movement > movement_threshold
@@ -111,4 +141,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     video_filename = sys.argv[1]
-    json_to_pkl(video_filename)
+    try:
+        json_to_pkl(video_filename)
+        sys.exit(0)
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)

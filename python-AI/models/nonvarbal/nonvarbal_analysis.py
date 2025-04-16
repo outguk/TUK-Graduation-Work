@@ -47,10 +47,19 @@ def video_nonverbal_analysis(video_file_path: str) -> dict:
         
         # Step 3: JSON을 PKL로 변환 (cal_movement.py 실행)
         print("\n Step 3: jsontopkl.py 실행")
-        subprocess.run(
+        movement_proc = subprocess.run(
             ["python", os.path.join(MMACTION2_DIR, "detect_pose", "cal_movement.py"), video_name],
-            cwd=PROJECT_ROOT, check=True
+            cwd=PROJECT_ROOT,     capture_output=True,text=True,check=True
         )
+        if movement_proc.returncode != 0:
+            print("❌ 실제 stderr 로그 ↓")
+            print(movement_proc.stderr)
+            return {
+                "status": "error",
+                "message": f"[movement 오류] {movement_proc.stderr.strip()}"
+            }
+
+
         # PKL에 유효한 프레임이 있는지 검사
         if not os.path.exists(result_pkl_path):
             return {"status": "no_data", "message": "results.pkl 파일이 생성되지 않았습니다."}
