@@ -20,6 +20,10 @@ import {
   InfoOutlined as InfoOutlinedIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import guideImg from '../assets/guide.png';
+import dashBoard from '../assets/dashboard.png';
+import evaluationDetail from '../assets/evaluation_detail.png';
+
 import { useNavigate } from 'react-router-dom';
 
 const UploadPage: React.FC = () => {
@@ -427,7 +431,7 @@ const UploadPage: React.FC = () => {
                           >
                             <Box 
                               component="img"
-                              src="/api/placeholder/300/170?text=대시보드+화면"
+                              src={dashBoard}
                               alt="분석 대시보드 예시"
                               sx={{
                                 position: 'absolute',
@@ -515,7 +519,7 @@ const UploadPage: React.FC = () => {
                           >
                             <Box 
                               component="img"
-                              src="/api/placeholder/300/170?text=세부평가+화면"
+                              src={evaluationDetail}
                               alt="세부 평가 화면 예시"
                               sx={{
                                 position: 'absolute',
@@ -528,18 +532,18 @@ const UploadPage: React.FC = () => {
                             />
                             
                             {/* 세부 평가 화면의 차트 영역 강조 표시 */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                top: '30%',
-                                left: '20%',
-                                width: '40%',
-                                height: '30%',
-                                border: '2px solid #ff0000',
-                                borderRadius: 1,
-                                zIndex: 2
-                              }}
-                            />
+                            {/*<Box*/}
+                            {/*  sx={{*/}
+                            {/*    position: 'absolute',*/}
+                            {/*    top: '30%',*/}
+                            {/*    left: '20%',*/}
+                            {/*    width: '40%',*/}
+                            {/*    height: '30%',*/}
+                            {/*    border: '2px solid #ff0000',*/}
+                            {/*    borderRadius: 1,*/}
+                            {/*    zIndex: 2*/}
+                            {/*  }}*/}
+                            {/*/>*/}
                           </Box>
                           
                           <Typography variant="caption" color="text.secondary">
@@ -609,7 +613,7 @@ const UploadPage: React.FC = () => {
                   >
                     <Box 
                       component="img"
-                      src="/api/placeholder/400/225?text=발표+영상+가이드"
+                      src={guideImg}
                       alt="발표 영상 가이드 이미지"
                       sx={{
                         position: 'absolute',
@@ -617,7 +621,7 @@ const UploadPage: React.FC = () => {
                         left: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover'
+                        objectFit: 'contain'
                       }}
                     />
                   </Box>
