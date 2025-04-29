@@ -77,7 +77,7 @@ const BEHAVIOR_CATEGORIES: { [key: string]: string } = {
   '자세': '#63e6be',
   '손동작': '#ff6b6b',
   '머리동작': '#4dabf7',
-  '팔동작': '#4dabf7'
+  '팔동작': '#ffd400'
 };
 
 const BEHAVIOR_FEEDBACK: { [key: string]: string } = {
