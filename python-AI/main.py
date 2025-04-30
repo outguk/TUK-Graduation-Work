@@ -1,7 +1,7 @@
 from typing import Optional, Union, AsyncGenerator
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Query, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
 import os
 import asyncio
@@ -11,6 +11,9 @@ import shutil
 import re
 from datetime import datetime
 import jwt
+
+# Add this import for video streaming
+from pathlib import Path
 
 # 기존 모듈 임포트 유지
 from models.vocalization.vocalization_analysis import extract_audio, transcribe_audio, analyze_speaking_speed, analyze_volume
@@ -97,6 +100,90 @@ def cleanup_intermediate_files(video_name: str):
             os.remove(path)
             logging.info(f"[CLEANUP] 파일 삭제: {path}")
     logging.info(f"[CLEANUP] {video_name} 분석 완료.")
+
+# 비디오 스트리밍 엔드포인트 추가 ----------------------------------------------------------------------------------------------------------
+@app.get("/fastapi/api/video/{filename}")
+async def stream_video(
+    filename: str, 
+    range: Optional[str] = Header(None),
+    user_id: int = Depends(get_current_user)
+):
+    """
+    비디오 파일을 스트리밍 형태로 제공하는 엔드포인트
+    HTTP Range 요청을 지원하여 영상 탐색(seeking)이 가능하게 합니다.
+    """
+    video_path = os.path.join(UPLOAD_DIR, filename)
+    logging.info(f"Attempting to stream video: {video_path}")
+    
+    # 파일 존재 확인
+    if not os.path.exists(video_path):
+        logging.error(f"Video file not found: {video_path}")
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    # 사용자 권한 확인 (요청한 사용자의 비디오인지 확인)
+    document = await collection.find_one({"filename": filename, "user_id": user_id})
+    if not document:
+        logging.error(f"User {user_id} not authorized to access video {filename}")
+        raise HTTPException(status_code=403, detail="You are not authorized to access this video")
+    
+    # 파일 크기 가져오기
+    file_size = os.path.getsize(video_path)
+    
+    # Range 헤더 처리 (비디오 탐색 지원)
+    start = 0
+    end = file_size - 1
+    
+    if range:
+        logging.debug(f"Range header received: {range}")
+        start_match = re.search(r'bytes=(\d+)-', range)
+        end_match = re.search(r'bytes=\d+-(\d+)', range)
+        
+        if start_match:
+            start = int(start_match.group(1))
+        if end_match:
+            end = min(int(end_match.group(1)), file_size - 1)
+            
+        logging.debug(f"Serving bytes {start} to {end} of {file_size}")
+    
+    # 콘텐츠 길이 계산
+    content_length = end - start + 1
+    
+    # 응답 헤더 설정
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(content_length),
+        "Content-Type": "video/mp4",
+    }
+    
+    # 비디오 스트리밍 함수 정의
+    async def video_streamer():
+        with open(video_path, "rb") as video_file:
+            video_file.seek(start)
+            chunk_size = 1024 * 1024  # 1MB 단위로 스트리밍
+            remaining = content_length
+            
+            while remaining > 0:
+                chunk = video_file.read(min(chunk_size, remaining))
+                if not chunk:
+                    break
+                    
+                remaining -= len(chunk)
+                yield chunk
+                
+                # 중간 로깅 (디버깅 목적, 프로덕션에서는 제거)
+                if remaining % (10 * chunk_size) == 0 and remaining > 0:
+                    logging.debug(f"Streamed {content_length - remaining}/{content_length} bytes")
+        
+        logging.info(f"Finished streaming video {filename}")
+    
+    # StreamingResponse로 비디오 데이터 반환
+    return StreamingResponse(
+        video_streamer(),
+        status_code=206 if range else 200,  # 206 Partial Content, 200 OK
+        headers=headers
+    )
+# 비디오 스트리밍 엔드포인트 추가(위) ----------------------------------------------------------------------------------------------------------
 
 @app.post("/fastapi/api/upload-video/")
 async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_current_user)):

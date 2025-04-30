@@ -1,23 +1,3 @@
-// /**
-//  * NonverbalEvaluationDetailPage.tsx
-//  * 
-//  * 설명: 발표 분석의 비언어적 요소 세부 결과 페이지
-//  * 
-//  * URL 파라미터:
-//  * - presentationId: 발표 ID (optional, 없으면 가장 최근 발표 분석 표시)
-//  * 
-//  * 백엔드 API 연동 포인트:
-//  * - GET /api/presentations/{presentationId}/nonverbal
-//  *   : 특정 발표의 비언어적 분석 데이터 조회
-//  * 
-//  * 기능:
-//  * 1. 타임라인 기반 비디오 세그먼트 표시 및 상호작용
-//  * 2. 비언어적 행동 카테고리별 발생 빈도 차트
-//  * 3. 선택된 구간의 비언어적 행동 피드백 표시
-//  * 
-//  * 응답 형식은 mongoDB의 nonverbal_analysis형식과 동일
-//  */
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
@@ -51,6 +31,8 @@ import {
   Category as CategoryIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  PlayArrow as PlayArrowIcon,
+  Pause as PauseIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -98,6 +80,7 @@ const BEHAVIOR_FEEDBACK: { [key: string]: string } = {
 const NonverbalEvaluationDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const timelineRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { presentationId } = useParams<{ presentationId?: string }>();
 
   const [presentation, setPresentation] = useState<PresentationAnalysis | null>(null);
@@ -110,6 +93,8 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 300);
@@ -125,6 +110,12 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
         behavior: 'smooth'
       });
     }
+  };
+
+  // Parse time range to get seconds 
+  const parseTimeToSeconds = (timeStr: string): number => {
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    return (minutes * 60) + seconds;
   };
 
   useEffect(() => {
@@ -166,6 +157,11 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
         setPresentation(presentationData);
         setAnalysisData(presentationData.nonverbal_analysis);
         processAnalysisData(presentationData.nonverbal_analysis);
+
+        // Set video URL
+        if (presentationData.filename) {
+          setVideoUrl(`/fastapi/api/video/${presentationData.filename}`);
+        }
       } catch (err: any) {
         console.error("발표 데이터 로드 에러:", err);
         setError(err.response?.data?.error || '데이터를 불러오는 중 오류가 발생했습니다.');
@@ -176,6 +172,26 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
 
     fetchNonverbalData();
   }, [presentationId]);
+
+  useEffect(() => {
+    // Add video playback event listeners
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [videoRef.current]);
 
   const processAnalysisData = useCallback((data: NonverbalSegment[]) => {
     if (!data || data.length === 0) return;
@@ -224,6 +240,15 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     const segment = analysisData[index];
     setSelectedSegmentIndex(index);
 
+    // Seek to the selected segment's time
+    if (videoRef.current && segment.time_range) {
+      const startTime = segment.time_range.split('-')[0]; // Format: "MM:SS"
+      const startTimeInSeconds = parseTimeToSeconds(startTime);
+      
+      videoRef.current.currentTime = startTimeInSeconds;
+      videoRef.current.play().catch(e => console.error("Video playback error:", e));
+    }
+
     if (segment.is_normal) {
       setSelectedBehavior("정상");
       setSelectedFeedback("이 구간에서는 특별한 문제가 감지되지 않았습니다. 좋은 자세와 제스처를 유지하고 있습니다.");
@@ -240,6 +265,16 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     }, 300);
   };
 
+  const togglePlayPause = () => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch(e => console.error("Video playback error:", e));
+    }
+  };
+
   const getCategoryColor = (category: string): string => {
     return BEHAVIOR_CATEGORIES[category] || '#888888';
   };
@@ -250,10 +285,6 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     } else {
       navigate('/analysis');
     }
-  };
-
-  const getSegmentThumbnail = (segment: NonverbalSegment): string => {
-    return `/api/placeholder/640/360?text=구간 ${segment.sample_number} (${segment.time_range})`;
   };
 
   return (
@@ -352,32 +383,87 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                     </Box>
                   ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                      {/* Video Player with custom controls */}
                       <Box 
                         sx={{ 
                           width: '100%', 
                           pb: '56.25%',
                           position: 'relative',
-                          bgcolor: '#f5f5f5',
+                          bgcolor: '#000',
                           borderRadius: 2,
                           mb: 3,
                           overflow: 'hidden',
                           flexGrow: 0
                         }}
                       >
-                        {selectedSegmentIndex !== null && analysisData && (
+                        {videoUrl ? (
+                          <>
+                            <video
+                              ref={videoRef}
+                              src={videoUrl}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain'
+                              }}
+                              onError={(e) => {
+                                console.error("Video loading error:", e);
+                                setError("영상을 불러오는 중 오류가 발생했습니다.");
+                              }}
+                            />
+                            
+                            {/* Custom play/pause overlay */}
+                            <Box
+                              onClick={togglePlayPause}
+                              sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                backgroundColor: isPlaying ? 'transparent' : 'rgba(0, 0, 0, 0.3)',
+                                opacity: isPlaying ? 0 : 1,
+                                transition: 'opacity 0.3s ease',
+                                '&:hover': {
+                                  opacity: 1,
+                                  backgroundColor: 'rgba(0, 0, 0, 0.3)'
+                                }
+                              }}
+                            >
+                              <IconButton
+                                sx={{
+                                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                                  }
+                                }}
+                              >
+                                {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+                              </IconButton>
+                            </Box>
+                          </>
+                        ) : (
                           <Box
-                            component="img"
-                            src={getSegmentThumbnail(analysisData[selectedSegmentIndex])}
-                            alt={`발표 구간 ${analysisData[selectedSegmentIndex].sample_number} 썸네일`}
                             sx={{
                               position: 'absolute',
                               top: 0,
                               left: 0,
                               width: '100%',
                               height: '100%',
-                              objectFit: 'cover'
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center'
                             }}
-                          />
+                          >
+                            <Typography color="white">영상을 불러오는 중...</Typography>
+                          </Box>
                         )}
                         
                         {selectedSegmentIndex !== null && analysisData && (
