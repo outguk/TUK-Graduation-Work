@@ -11,6 +11,10 @@ import reactor.core.scheduler.Schedulers;
 import TUK_Graduation_Work.GW_backend.service.FastApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.PathResource;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -103,4 +107,27 @@ public class FastApiController {
                     )).cast(Map.class);
                 });
     }
+
+    @GetMapping("/video/{filename:.+}")
+    public Mono<ResponseEntity<Resource>> streamVideo(
+            @PathVariable String filename,
+            @RequestHeader HttpHeaders headers
+    ) {
+        // 서버에 비디오가 저장된 디렉토리 경로
+        Path videoPath = Paths.get(System.getProperty("user.home"), "videos", filename);
+        Resource videoResource = new PathResource(videoPath);
+
+        if (!videoResource.exists()) {
+            return Mono.just(ResponseEntity.notFound().build());
+        }
+
+        // 간단히 전체 파일을 반환 (Range 요청 처리 없이)
+        return Mono.just(
+                ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_TYPE, "video/mp4")
+                        .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                        .body(videoResource)
+        );
+    }
+
 }

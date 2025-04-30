@@ -11,6 +11,7 @@ import shutil
 import re
 from datetime import datetime
 import jwt
+from fastapi.responses import FileResponse
 
 # 기존 모듈 임포트 유지
 from models.vocalization.vocalization_analysis import extract_audio, transcribe_audio, analyze_speaking_speed, analyze_volume
@@ -215,6 +216,18 @@ async def get_analysis_by_user(user_id: int = Depends(get_current_user)):
         doc["_id"] = str(doc["_id"])
         results.append(doc)
     return {"analyses": results}
+
+@app.get("/fastapi/api/video/{filename}")
+async def stream_video(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Video not found")
+    return FileResponse(
+        path=file_path,
+        media_type="video/mp4",
+        headers={"Accept-Ranges": "bytes"}
+    )
+
 
 @app.get("/fastapi/api/analysis/stats")
 async def get_analysis_stats(user_id: int = Depends(get_current_user)):
