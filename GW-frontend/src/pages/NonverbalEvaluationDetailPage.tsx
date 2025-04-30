@@ -101,6 +101,36 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  /**
+   * 인증 토큰을 포함하여 비디오 파일을 가져오는 함수
+   */
+  const fetchVideo = async (filename: string): Promise<Blob> => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('인증 토큰이 없습니다.');
+    }
+    
+    const response = await fetch(`/fastapi/api/video/${filename}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('영상 파일을 찾을 수 없습니다.');
+      } else if (response.status === 403) {
+        throw new Error('이 영상에 접근할 권한이 없습니다.');
+      } else if (response.status === 401) {
+        throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+      } else {
+        throw new Error(`서버 오류 (${response.status}): ${response.statusText}`);
+      }
+    }
+    
+    return await response.blob();
+  };
+
   const scrollTimeline = (direction: 'left' | 'right') => {
     if (timelineRef.current) {
       const scrollAmount = 200;
@@ -157,11 +187,6 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
         setPresentation(presentationData);
         setAnalysisData(presentationData.nonverbal_analysis);
         processAnalysisData(presentationData.nonverbal_analysis);
-
-        // Set video URL
-        if (presentationData.filename) {
-          setVideoUrl(`/fastapi/api/video/${presentationData.filename}`);
-        }
       } catch (err: any) {
         console.error("발표 데이터 로드 에러:", err);
         setError(err.response?.data?.error || '데이터를 불러오는 중 오류가 발생했습니다.');
@@ -172,6 +197,41 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
 
     fetchNonverbalData();
   }, [presentationId]);
+
+  // 비디오 로드를 위한 useEffect
+  useEffect(() => {
+    const loadVideo = async () => {
+      if (!presentation?.filename) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log(`비디오 로드 시작: ${presentation.filename}`);
+        const videoBlob = await fetchVideo(presentation.filename);
+        console.log(`비디오 로드 완료: ${presentation.filename}, 크기: ${videoBlob.size} 바이트`);
+        
+        const videoObjectUrl = URL.createObjectURL(videoBlob);
+        setVideoUrl(videoObjectUrl);
+        
+      } catch (err) {
+        console.error("비디오 로드 에러:", err);
+        setError(err instanceof Error ? err.message : '영상을 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadVideo();
+    
+    // 컴포넌트 언마운트 시 객체 URL 정리
+    return () => {
+      if (videoUrl && videoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(videoUrl);
+        console.log('객체 URL 해제됨:', videoUrl);
+      }
+    };
+  }, [presentation?.filename]);
 
   useEffect(() => {
     // Add video playback event listeners
@@ -396,7 +456,27 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                           flexGrow: 0
                         }}
                       >
-                        {videoUrl ? (
+                        {loading ? (
+                          // 로딩 중 UI
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              color: 'white'
+                            }}
+                          >
+                            <CircularProgress size={40} sx={{ color: 'white', mb: 2 }} />
+                            <Typography variant="body2">영상을 불러오는 중...</Typography>
+                          </Box>
+                        ) : videoUrl ? (
+                          // 비디오 플레이어
                           <>
                             <video
                               ref={videoRef}
@@ -410,12 +490,12 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                                 objectFit: 'contain'
                               }}
                               onError={(e) => {
-                                console.error("Video loading error:", e);
-                                setError("영상을 불러오는 중 오류가 발생했습니다.");
+                                console.error("Video playback error:", e);
+                                setError("영상 재생 중 오류가 발생했습니다.");
                               }}
                             />
                             
-                            {/* Custom play/pause overlay */}
+                            {/* 커스텀 재생/일시정지 오버레이 */}
                             <Box
                               onClick={togglePlayPause}
                               sx={{
@@ -448,8 +528,33 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                                 {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
                               </IconButton>
                             </Box>
+                            
+                            {/* 비디오 정보 오버레이 */}
+                            {selectedSegmentIndex !== null && analysisData && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  bgcolor: 'rgba(0, 0, 0, 0.7)',
+                                  color: 'white',
+                                  p: 2
+                                }}
+                              >
+                                <Typography variant="body2" fontWeight={500}>
+                                  구간: {analysisData[selectedSegmentIndex].time_range}
+                                </Typography>
+                                <Typography variant="caption">
+                                  {analysisData[selectedSegmentIndex].is_normal 
+                                    ? '정상적인 자세와 제스처' 
+                                    : `감지된 행동: ${selectedBehavior}`}
+                                </Typography>
+                              </Box>
+                            )}
                           </>
                         ) : (
+                          // 비디오 없을 때 UI
                           <Box
                             sx={{
                               position: 'absolute',
@@ -459,32 +564,14 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                               height: '100%',
                               display: 'flex',
                               justifyContent: 'center',
-                              alignItems: 'center'
+                              alignItems: 'center',
+                              flexDirection: 'column',
+                              bgcolor: 'rgba(0, 0, 0, 0.7)'
                             }}
                           >
-                            <Typography color="white">영상을 불러오는 중...</Typography>
-                          </Box>
-                        )}
-                        
-                        {selectedSegmentIndex !== null && analysisData && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              bottom: 0,
-                              left: 0,
-                              width: '100%',
-                              bgcolor: 'rgba(0, 0, 0, 0.7)',
-                              color: 'white',
-                              p: 2
-                            }}
-                          >
-                            <Typography variant="body2" fontWeight={500}>
-                              구간: {analysisData[selectedSegmentIndex].time_range}
-                            </Typography>
-                            <Typography variant="caption">
-                              {analysisData[selectedSegmentIndex].is_normal 
-                                ? '정상적인 자세와 제스처' 
-                                : `감지된 행동: ${selectedBehavior}`}
+                            <InfoIcon sx={{ color: 'white', fontSize: 40, mb: 2 }} />
+                            <Typography color="white" variant="body2" align="center">
+                              {error ? error : "영상을 불러올 수 없습니다."}
                             </Typography>
                           </Box>
                         )}
