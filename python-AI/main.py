@@ -194,6 +194,28 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     logging.info(f"Video uploaded: {file_path}")
+
+    # HEVC 코덱을 H.264로 변환
+    compatible_video_path = file_path.replace(".mp4", "_h264.mp4")
+    try:
+        # FFmpeg로 비디오 변환 (백그라운드 프로세스로 실행)
+        subprocess.run([
+            "ffmpeg", "-i", file_path, 
+            "-c:v", "libx264", "-preset", "medium", 
+            "-c:a", "aac", 
+            "-y", compatible_video_path
+        ], check=True)
+        
+        # 원본 파일 대신 변환된 파일 사용
+        if os.path.exists(compatible_video_path):
+            # 파일명은 그대로 유지하되, 실제 파일은 변환된 것 사용
+            logging.info(f"Converted video to H.264: {compatible_video_path}")
+        else:
+            logging.warning(f"Failed to convert video: {file_path}")
+    except Exception as e:
+        logging.error(f"Error converting video: {e}")
+
+
     audio_path = file_path.replace(".mp4", ".wav")
     await extract_audio(file_path, audio_path)
 
@@ -248,7 +270,7 @@ async def upload_video(file: UploadFile = File(...), user_id: int = Depends(get_
     volume_task = loop.run_in_executor(None, analyze_volume, transcription, audio_path)
     speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
 
-    absolute_file_path = os.path.abspath(file_path)
+    absolute_file_path = os.path.abspath(compatible_video_path)
     nonverbal_analysis = video_nonverbal_analysis(absolute_file_path)
 
     speed_score = evaluate_speaking_speed(speaking_speed)
