@@ -107,6 +107,12 @@ const AnalysisDashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
 
+
+  // 정상 범위와 심각한 벗어남의 기준
+  const SPEED_NORMAL_MIN = 100;
+  const SPEED_NORMAL_MAX = 140;
+  const SPEED_SEVERE_DEVIATION = 30;
+
   /**
    * 백엔드 개발자 참고사항:
    * 발표 팁 배열입니다. 5초마다 하나씩 표시됩니다.
@@ -368,7 +374,7 @@ const AnalysisDashboardPage: React.FC = () => {
               color="text.secondary"
               sx={{ mt: 3 }}
             >
-              Your presentation video analysis is complete. Review your results below.
+              영상 분석이 완료되었습니다! 결과를 확인해 보세요
             </Typography>
           </Box>
           
@@ -429,12 +435,12 @@ const AnalysisDashboardPage: React.FC = () => {
                           fontWeight={600}
                           sx={{ mb: 3 }}
                         >
-                          Summary
+                          요약 정보
                         </Typography>
                         
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ width: '50%' }}>
-                            Total Duration
+                            총 영상 시간
                           </Typography>
                           <Typography variant="h5" fontWeight={700} sx={{ width: '50%', textAlign: 'right' }}>
                             {duration}
@@ -492,7 +498,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           fontWeight={600}
                           sx={{ mb: 3 }}
                         >
-                          Presentation Tips
+                          발표 팁
                         </Typography>
                         
                         <Box 
@@ -523,7 +529,7 @@ const AnalysisDashboardPage: React.FC = () => {
                     </Card>
                   </Grid>
                   
-                  {/* Middle column: Charts */}
+                  {/* 중간 차트 (속도와 음량 부분) */}
                   <Grid item xs={12} md={6}>
                     {/* Speaking pace chart */}
                     <Paper 
@@ -558,7 +564,7 @@ const AnalysisDashboardPage: React.FC = () => {
                       aria-label="Speaking pace analysis details"
                     >
                       <Typography variant="h6" component="h2" fontWeight={600}>
-                        Present Speed (WPM)
+                        말하기 속도 (분당 단어 수)
                       </Typography>
                       
                       <Box
@@ -637,7 +643,20 @@ const AnalysisDashboardPage: React.FC = () => {
                                 return `${x},${y}`;
                               })()}`}
                               fill="none"
-                              stroke="#AAD500"
+                              stroke={(() => {
+                                // Calculate average WPM
+                                const avgWpm = paceData.reduce((sum, item) => sum + item.wpm, 0) / (paceData.length || 1);
+                                
+                                // Determine color based on criteria
+                                if (avgWpm >= SPEED_NORMAL_MIN && avgWpm <= SPEED_NORMAL_MAX) {
+                                  return "#4caf50"; // Green - 정상 범위
+                                } else if (avgWpm < SPEED_NORMAL_MIN - SPEED_SEVERE_DEVIATION || 
+                                          avgWpm > SPEED_NORMAL_MAX + SPEED_SEVERE_DEVIATION) {
+                                  return "#e53935"; // Red - 위험 범위 (30+ WPM off)
+                                } else {
+                                  return "#ff8c00"; // Orange - 경고 범위 (within 30 WPM)
+                                }
+                              })()}
                               strokeWidth="12"
                               strokeLinecap="butt"
                             />
@@ -702,9 +721,9 @@ const AnalysisDashboardPage: React.FC = () => {
                       >
                         {(() => {
                           const avgWpm = paceData.reduce((sum, item) => sum + item.wpm, 0) / (paceData.length || 1);
-                          if (avgWpm < 100) return "Your pace is a bit slow. Try to speak slightly faster.";
-                          if (avgWpm > 150) return "Your pace is a bit fast. Try to slow down slightly.";
-                          return "Your pace is just right. Keep it up!";
+                          if (avgWpm < 100) return "말하기 속도가 조금 느려요. 조금 더 속도감 있게 말하려고 노력해보세요.";
+                          if (avgWpm > 150) return "말하기 속도가 조금 빨라요. 조금 더 차분하게 말하려고 노력해보세요.";
+                          return "말하기 속도가 적절합니다. 이 속도를 유지하세요!";
                         })()}
                       </Typography>
                     </Paper>
@@ -742,15 +761,15 @@ const AnalysisDashboardPage: React.FC = () => {
                     >
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" component="h2" fontWeight={600}>
-                          Volume Analysis (dB)
+                          음량 (dB)
                         </Typography>
                         <GraphicEqIcon />
                       </Box>
                       
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Average volume: {volumeData.length 
+                        해당 발표 평균 음량: {volumeData.length 
                           ? (volumeData.reduce((sum, item) => sum + item.db, 0) / volumeData.length).toFixed(1) 
-                          : "0"} dB (Optimal range: 60-75 dB)
+                          : "0"} dB (적정 음량 범위: 60-75 dB)
                       </Typography>
                       
                       <Box sx={{ height: '200px', width: '100%' }}>
@@ -844,7 +863,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           fontWeight={600}
                           sx={{ mb: 2 }}
                         >
-                          Script Analysis
+                          대본 분석 결과
                         </Typography>
                         
                         <Typography 
@@ -853,7 +872,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           color="text.secondary"
                           sx={{ mb: 3 }}
                         >
-                          Review analysis of your presentation script and verbal expressions.
+                          발표 대본과 문장에 대한 분석을 확인하세요.
                         </Typography>
                         
                         <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
@@ -873,7 +892,7 @@ const AnalysisDashboardPage: React.FC = () => {
                               }
                             }}
                           >
-                            View Details
+                            세부 결과 보기
                           </Button>
                         </Box>
                       </CardContent>
@@ -936,7 +955,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           fontWeight={600}
                           sx={{ mb: 2 }}
                         >
-                          Nonverbal Analysis
+                          비언어 요소 분석 결과
                         </Typography>
                         
                         <Typography 
@@ -945,7 +964,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           color="text.secondary"
                           sx={{ mb: 3 }}
                         >
-                          Review analysis of your posture, eye contact, gestures, and other nonverbal elements.
+                          자세, 머리동작, 제스처 및 기타 비언어적 요소에 대한 분석을 확인하세요.
                         </Typography>
                         
                         <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
@@ -965,7 +984,7 @@ const AnalysisDashboardPage: React.FC = () => {
                               }
                             }}
                           >
-                            View Details
+                            세부 결과 보기
                           </Button>
                         </Box>
                       </CardContent>

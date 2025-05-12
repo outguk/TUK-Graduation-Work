@@ -155,19 +155,21 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     }
   };
 
-  const toSeconds = (time: string) => {
-    const [mm, ss] = time.split(":").map(Number);
-    return mm * 60 + ss;
-  };
+ // "22.00s" 같은 문자열을 초 단위 숫자로 변환
+ const parseSeconds = (timeStr: string) =>
+   parseFloat(timeStr.replace(/[^\d.]/g, ""));
+
 
   // 세그먼트로 시킹
-  const seekToSegment = (index: number) => {
-    if (!analysisData || !videoRef.current) return;
-    const range = analysisData[index].time_range; // "MM:SS-MM:SS"
-    const [start] = range.split("-");
-    videoRef.current.currentTime = toSeconds(start);
-    videoRef.current.play();
-  };
+ const seekToSegment = (index: number) => {
+   if (!analysisData || !videoRef.current) return;
+   // "22.00s ~ 23.80s" 에서 앞쪽만 꺼내기
+   const range = analysisData[index].time_range;
+   const startPart = range.split("~")[0].trim();  // "22.00s"
+   const seconds = parseSeconds(startPart);
+   videoRef.current.currentTime = seconds;
+   videoRef.current.play();
+ };
 
   useEffect(() => {
     const fetchNonverbalData = async () => {
@@ -293,6 +295,9 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     setTimeout(() => {
       setShowFeedback(true);
     }, 300);
+
+    // 영상도 해당 구간으로 이동시키기
+    seekToSegment(index);
   };
 
   const getCategoryColor = (category: string): string => {

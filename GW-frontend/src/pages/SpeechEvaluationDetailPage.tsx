@@ -262,7 +262,7 @@ const SPEED_SEVERE_DEVIATION = 30; // 정상 범위에서 30 WPM 이상 벗어�
 
 const VOLUME_NORMAL_MIN = 60;
 const VOLUME_NORMAL_MAX = 70;
-const VOLUME_SEVERE_DEVIATION = 15; // 정상 범위에서 10 dB 이상 벗어나면 심각하게 간주
+const VOLUME_SEVERE_DEVIATION = 15; // 정상 범위에서 15 dB 이상 벗어나면 심각하게 간주
 
 // 음량에 따른 색상을 결정하는 함수
 const getVolumeColor = (db: number | undefined | null): string => {
@@ -587,7 +587,7 @@ const getReferenceLines = () => {
                       <Typography variant="body2" color="text.secondary">
                         {type === 'speed' 
                           ? '말하기 속도는 효과적인 메시지 전달을 위해 중요합니다. 110-130 WPM이 일반적으로 권장됩니다.' 
-                          : '음량은 청중의 주의를 끌고 메시지의 중요성을 강조하는 데 중요합니다. 65-70 dB이 일반적으로 권장됩니다.'}
+                          : '음량은 청중의 주의를 끌고 메시지의 중요성을 강조하는 데 중요합니다. 60-70 dB이 일반적으로 권장됩니다.'}
                       </Typography>
                     </Box>
                     
