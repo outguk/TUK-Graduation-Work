@@ -81,6 +81,23 @@ interface AnalysisData {
   speaking_evaluation?: { overall_score: number };
   volume_evaluation?: { overall_score: number };
   duration?: string;
+  script_analysis?: ScriptAnalysis;
+}
+
+interface ScriptAnalysis {
+  length: number;
+  length_feedback: string;
+  min_length: number;
+  max_length: number;
+  non_honorific_count: number;
+  uncertainty_count: number;
+  subject_verb_mismatch_count: number;
+  profanity_count: number;
+  non_honorific_examples: string[];
+  uncertainty_examples: [number, string][];
+  subject_verb_examples: string[];
+  profanity_examples: string[];
+  otas_detected: any[];      // 실제 구조에 맞게 세부 타입 지정 가능
 }
 
 const AnalysisDashboardPage: React.FC = () => {
@@ -305,7 +322,15 @@ const AnalysisDashboardPage: React.FC = () => {
   };
 
   const handleNavigateToScript = () => {
-    navigate(`/analysis/script/${selectedPresentationId}`);
+    const hasScript = Boolean(analysisData?.script_analysis);
+
+    // 파일명(id) 바로 뒤에 /script 또는 /script-display 를 붙여준다
+    const base = `/analysis/${selectedPresentationId}`;
+
+    navigate(
+      hasScript ? `${base}/script-display`
+                : `${base}/script`
+    );
   };
 
   const handleNavigateToNonverbal = () => {
@@ -892,7 +917,8 @@ const AnalysisDashboardPage: React.FC = () => {
                               }
                             }}
                           >
-                            세부 결과 보기
+                            {analysisData?.script_analysis ? '세부 결과 보기' : '대본 업로드'}
+
                           </Button>
                         </Box>
                       </CardContent>

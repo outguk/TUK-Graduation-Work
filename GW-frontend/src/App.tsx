@@ -15,7 +15,9 @@ const UploadPage = lazy(() => import('./pages/UploadPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
 const SpeechEvaluationDetailPage = lazy(() => import('./pages/SpeechEvaluationDetailPage'));
 const NonverbalEvaluationDetailPage = lazy(() => import('./pages/NonverbalEvaluationDetailPage'));
-
+//스크립트
+const ScriptUpload = lazy(() => import('./pages/ScriptUpload'));
+const ScriptPage   = lazy(() => import('./pages/ScriptPage'));
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -35,9 +37,17 @@ function App() {
             <Route path="/analysis" element={<AnalysisDashboardPage />} />
             <Route path="/analysis/:presentationId" element={<AnalysisDashboardPage />} />
 
+            {/* ───────── 대본 업로드 / 결과  ───────── */}
+            <Route path="/analysis/:filename/script"          element={<ScriptUpload />} />
+            <Route path="/analysis/:filename/script-display" element={<ScriptPage   />} />
+
+
             {/* Detail analysis pages */}
             <Route path="/analysis/:type/:presentationId" element={<SpeechEvaluationDetailPage />} />
             <Route path="/analysis/nonverbal/:presentationId" element={<NonverbalEvaluationDetailPage />} />
+
+
+
           </Routes>
         </Suspense>
       </Router>

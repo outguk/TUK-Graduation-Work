@@ -129,5 +129,26 @@ public class FastApiController {
                         .body(videoResource)
         );
     }
+    // 스크립트 업로드
+    @PostMapping(value = "/script-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<Map<String,Object>> handleScriptUpload(
+        @RequestPart("scriptFile") FilePart file,
+        @RequestPart("filename") String filename,
+        @RequestHeader("Authorization") String authHeader
+    ) {
+        String token = authHeader.replace("Bearer ", "");
+        return file.transferTo(
+            Paths.get(System.getProperty("java.io.tmpdir"), file.filename())
+        )
+        .then(fastApiClient.analyzeScript(
+            Paths.get(System.getProperty("java.io.tmpdir"), file.filename()).toString(),
+            filename,
+            token
+        ));
+    }
+  
+
+
+
 
 }

@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
 
 
 import java.io.File;
@@ -107,4 +108,19 @@ public class FastApiClient {
                 })
                 .bodyToMono(Map.class);
     }
+
+    public Mono<Map<String,Object>> analyzeScript(
+        String filePath, String filename, String token
+    ) {
+        return webClient.post()
+        .uri("/fastapi/api/analyze-script/")
+        .header("Authorization", "Bearer " + token)
+            .contentType(MediaType.MULTIPART_FORM_DATA)
+        .body(BodyInserters.fromMultipartData("file", new FileSystemResource(filePath))
+                            .with("filename", filename))
+        .retrieve()
+        .bodyToMono(new ParameterizedTypeReference<Map<String,Object>>() {});
+    }
+    
+
 }

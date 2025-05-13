@@ -4,7 +4,7 @@ import os
 
 # 복사해둔 MongoDB URI 넣기 (비밀번호는 URL 인코딩된 상태여야 함!)
 
-MONGO_DB_URI = ""# 예: mongodb+srv://user:password@cluster.mongodb.net
+MONGO_DB_URI = "mongodb+srv://junpyo:nDnw6d3SqOOIGumO@analysis-db.nppaekk.mongodb.net/analysis_db?retryWrites=true&w=majority&appName=analysis-db"# 예: mongodb+srv://user:password@cluster.mongodb.net
 
 
 client = AsyncIOMotorClient(MONGO_DB_URI)

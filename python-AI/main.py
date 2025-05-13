@@ -1,5 +1,5 @@
 from typing import Optional, Union, AsyncGenerator
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Query, Header, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Query, Header, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -11,6 +11,8 @@ import shutil
 import re
 from datetime import datetime
 import jwt
+
+
 from fastapi.responses import FileResponse
 
 # 기존 모듈 임포트 유지
@@ -24,6 +26,7 @@ from models.vocalization.util_functions import (
     save_filtered_audio
 )
 from konlpy.tag import Okt, Kkma
+
 from mongodb import collection
 
 app = FastAPI()
@@ -43,7 +46,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploaded_videos")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+SCRIPT_PATH = os.path.join(BASE_DIR, "models", "script", "script_feedback_korcen.py")
+def verify_jwt_and_get_user_id(auth_header: str) -> int:
+    token = auth_header.replace("Bearer ", "")
+    payload = jwt.decode(token, SECRET, algorithms=["HS384"])
+    return int(payload["sub"])
+
 SECRET = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6"
+
+def verify_jwt_and_get_user_id(auth_header: str) -> int:  # ★ JWT → user_id 추출
+    token = auth_header.replace("Bearer ", "")
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=["HS384"])
+        return int(payload["sub"])
+    except Exception as e:
+        logging.error(f"JWT decode error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
 logging.info(f"FastAPI SECRET: {SECRET}")
 
 # 토큰 인증 의존성
@@ -261,5 +281,39 @@ async def get_analysis_stats(user_id: int = Depends(get_current_user)):
         logging.error(f"Error in get_analysis_stats for user_id {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch analysis stats: {str(e)}")
 
+@app.post("/fastapi/api/analyze-script/")
+async def analyze_script_endpoint(
+    file: UploadFile = File(...),
+    filename: str = Form(...),
+    authorization: str = Header(...)
+):
+    user_id = verify_jwt_and_get_user_id(authorization)
+
+    # 1) 임시 저장
+    tmp_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(tmp_path, "wb") as f:
+        f.write(await file.read())
+
+    # 2) 외부 스크립트 호출
+    result = subprocess.run(
+      ["python3", SCRIPT_PATH, tmp_path],
+      capture_output=True, text=True
+    )
+    if result.returncode != 0:
+      raise HTTPException(500, "Script error: "+result.stderr)
+
+    analysis = json.loads(result.stdout)
+
+    # 3) MongoDB 업데이트
+    res = collection.update_one(
+      {"user_id": user_id, "filename": filename},
+      {"$set": {"script_analysis": analysis}}
+    )
+    if res.matched_count == 0:
+      raise HTTPException(404, "Presentation not found")
+
+    # 4) 업데이트된 문서 조회 및 반환
+    doc = collection.find_one({"user_id": user_id, "filename": filename})
+    return JSONResponse(content=doc)
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)
