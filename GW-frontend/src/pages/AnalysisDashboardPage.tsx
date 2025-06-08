@@ -606,13 +606,13 @@ const AnalysisDashboardPage: React.FC = () => {
                               strokeWidth="12"
                               strokeLinecap="butt"
                             />
-                            <text x="0" y="20" fontSize="4" fill="#666" textAnchor="middle">
+                            <text x="10" y="65" fontSize="5" fill="#666" textAnchor="middle" fontWeight="bold">
                               0
                             </text>
                             <text x="50" y="55" fontSize="4" fill="#666" textAnchor="middle">
                               100
                             </text>
-                            <text x="100" y="20" fontSize="4" fill="#666" textAnchor="middle">
+                            <text x="90" y="65" fontSize="5" fill="#666" textAnchor="middle" fontWeight="bold">
                               200
                             </text>
                           </Box>
