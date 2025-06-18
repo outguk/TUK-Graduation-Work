@@ -12,10 +12,10 @@ import {
   Card,
   CardContent,
   Tooltip,
-  IconButton,
+  IconButton, LinearProgress
 } from '@mui/material';
-import { 
-  CloudUpload as CloudUploadIcon, 
+import {
+  CloudUpload as CloudUploadIcon,
   ArrowBack as ArrowBackIcon,
   InfoOutlined as InfoOutlinedIcon
 } from '@mui/icons-material';
@@ -32,15 +32,43 @@ const UploadPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const navigate = useNavigate();
+  //추가: taskId, progress, stage 상태 (진행률 관련)
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [stage, setStage] = useState<string>('');
 
-  // Animation effect on mount
-  useEffect(() => {
-    const timer = setTimeout(() => setShowContent(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
 
-  const handleUpload = async () => {
+    // Animation effect on mount
+    const navigate = useNavigate();
+    useEffect(() => {
+        const timer = setTimeout(() => setShowContent(true), 300);
+        return () => clearTimeout(timer);
+    }, []); //
+
+    useEffect(() => {
+        if (!taskId) return;
+        const interval = setInterval(async () => {
+            try {
+                const res = await axios.get<{ stage: string; progress: number }>(
+                    `http://localhost:5000/fastapi/api/progress/${taskId}`
+                );
+                setStage(res.data.stage);
+                setProgress(res.data.progress);
+
+                if (res.data.progress >= 100) {
+                    clearInterval(interval);
+                    navigate(`/analysis/${file?.name}`);
+                }
+            } catch {
+                clearInterval(interval);
+                setError('진행률 조회 중 오류가 발생했습니다.');
+            }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [taskId, file, navigate]);
+
+
+    const handleUpload = async () => {
     if (!file) {
       setError('파일을 선택해주세요.');
       return;
@@ -60,16 +88,18 @@ const UploadPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.post('/spring/api/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.data.message !== '파일 업로드 및 분석 성공!') {
-        throw new Error(response.data.message || '업로드 실패');
-      }
-      navigate(`/analysis/${response.data.filename}`);
+        const { data } = await axios.post(
+            '/spring/api/upload',
+            formData,
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        setTaskId(data.task_id);
     } catch (e: any) {
       const errorMessage = e.response?.data?.message || '업로드 또는 분석 중 오류가 발생했습니다.';
       setError(errorMessage);
@@ -95,7 +125,7 @@ const UploadPage: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
     }
@@ -122,8 +152,8 @@ const UploadPage: React.FC = () => {
             mb: 5
           }}
         >
-          <Typography 
-            variant="h6" 
+          <Typography
+            variant="h6"
             fontWeight={700}
             sx={{
               letterSpacing: 1.2,
@@ -139,28 +169,28 @@ const UploadPage: React.FC = () => {
         <Fade in={showContent} timeout={1000}>
           <Box>
             {/* 헤더 영역 - 제목과 뒤로가기 버튼 (같은 높이에 배치) */}
-            <Box sx={{ 
-              display: 'flex', 
+            <Box sx={{
+              display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
               position: 'relative',
               mb: 4
             }}>
               {/* 메인으로 돌아가기 버튼 - 왼쪽 배치 (업로드 박스의 왼쪽 끝과 일치) */}
-              <Box sx={{ 
-                position: 'absolute', 
-                left: 0, 
+              <Box sx={{
+                position: 'absolute',
+                left: 0,
                 top: '55%', // 정가운데(50%)보다 살짝 아래로
                 transform: 'translateY(-50%)', // 버튼 자체 높이의 절반만큼 위로 조정
-                display: 'flex', 
-                alignItems: 'center', 
-                height: '100%' 
+                display: 'flex',
+                alignItems: 'center',
+                height: '100%'
               }}>
                 <Button
                   variant="outlined"
                   startIcon={<ArrowBackIcon />}
                   onClick={() => navigate('/main')}
-                  sx={{ 
+                  sx={{
                     borderRadius: 8,
                     px: 3,
                     py: 1,
@@ -176,10 +206,10 @@ const UploadPage: React.FC = () => {
                   메인으로 돌아가기
                 </Button>
               </Box>
-              
+
               {/* 헤드라인 - 중앙 배치 */}
-              <Typography 
-                variant="h4" 
+              <Typography
+                variant="h4"
                 component="h1"
                 fontWeight={700}
                 align="center"
@@ -231,18 +261,18 @@ const UploadPage: React.FC = () => {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                       justifyContent: 'center',
                       py: { xs: 1, md: 1.5 } // 세로 패딩 감소
                     }}
                   >
                     {/* 업로드 아이콘 */}
-                    <Box 
-                      sx={{ 
+                    <Box
+                      sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -257,9 +287,9 @@ const UploadPage: React.FC = () => {
                     </Box>
 
                     {/* 업로드 안내 텍스트 */}
-                    <Typography 
-                      variant="h6" 
-                      align="center" 
+                    <Typography
+                      variant="h6"
+                      align="center"
                       gutterBottom
                       fontWeight={600}
                       sx={{ mb: 0.5, fontSize: '1.1rem' }} // 글자 크기 감소
@@ -267,9 +297,9 @@ const UploadPage: React.FC = () => {
                       이곳에 영상을 올려주세요
                     </Typography>
 
-                    <Typography 
-                      variant="body2" 
-                      align="center" 
+                    <Typography
+                      variant="body2"
+                      align="center"
                       color="text.secondary"
                       sx={{ mb: 1.5, maxWidth: 500 }}
                     >
@@ -291,7 +321,7 @@ const UploadPage: React.FC = () => {
                         htmlFor="video-upload"
                         variant="outlined"
                         size="small" // 버튼 크기 감소
-                        sx={{ 
+                        sx={{
                           borderRadius: 2,
                           px: 2,
                           py: 0.5,
@@ -313,9 +343,9 @@ const UploadPage: React.FC = () => {
                     </Box>
 
                     {/* 최대 파일 크기 안내 */}
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
                       sx={{ mb: 1.5 }}
                     >
                       최대 300MB까지 가능합니다
@@ -327,11 +357,11 @@ const UploadPage: React.FC = () => {
                       onClick={handleUpload}
                       disabled={!file || loading}
                       size="medium" // 버튼 크기 감소
-                      sx={{ 
-                        px: 3, 
-                        py: 1, 
-                        borderRadius: 10, 
-                        fontWeight: 600, 
+                      sx={{
+                        px: 3,
+                        py: 1,
+                        borderRadius: 10,
+                        fontWeight: 600,
                         fontSize: '0.9rem',
                         backgroundColor: '#000',
                         color: '#fff',
@@ -347,27 +377,44 @@ const UploadPage: React.FC = () => {
                       {loading ? (
                         <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                       ) : null}
-                      {loading ? '분석 중...' : '업로드 및 분석 시작'}
+                      {/*{loading ? '분석 중...' : '업로드 및 분석 시작'}*/}
+                        {taskId
+                            ? '분석 진행 중...'
+                            : loading
+                                ? '업로드 중...'
+                                : '업로드 및 분석 시작'}
                     </Button>
+                      {taskId && (
+                          <Box sx={{ width:'100%', mt:3 }}>
+                              <Typography variant="body2" align="center" sx={{ mb:1 }}>
+                                  현재 단계: <strong>{stage}</strong>
+                              </Typography>
+                              <Typography variant="body2" align="center">
+                                  진행률: {progress}%
+                              </Typography>
+                              <LinearProgress variant="determinate" value={progress} sx={{ mt:1 }}/>
+                          </Box>
+                      )}
+
                   </Box>
                 </Paper>
-                
+
                 {/* 분석 과정 가이드 - 업로드 박스 아래에 위치 */}
                 <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Typography 
-                    variant="subtitle1" 
+                  <Typography
+                    variant="subtitle1"
                     fontWeight={600}
                     sx={{ mb: 2, pl: 1 }}
                   >
                     분석 과정 가이드
                   </Typography>
-                  
+
                   <Grid container spacing={2} sx={{ flexGrow: 1 }}>
                     {/* STEP 1 카드 */}
                     <Grid item xs={12} sm={6} sx={{ display: 'flex' }}>
-                      <Card 
-                        sx={{ 
-                          borderRadius: 3, 
+                      <Card
+                        sx={{
+                          borderRadius: 3,
                           boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
                           width: '100%',
                           transition: 'all 0.3s ease-in-out',
@@ -395,8 +442,8 @@ const UploadPage: React.FC = () => {
                       >
                         <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography 
-                              variant="subtitle1" 
+                            <Typography
+                              variant="subtitle1"
                               component="h3"
                               fontWeight={600}
                             >
@@ -408,18 +455,18 @@ const UploadPage: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                           </Box>
-                          
-                          <Typography 
-                            variant="body2" 
+
+                          <Typography
+                            variant="body2"
                             fontWeight={500}
                             sx={{ mb: 1 }}
                           >
                             발표 전체 요약 정보 확인
                           </Typography>
-                          
-                          <Box 
-                            sx={{ 
-                              width: '100%', 
+
+                          <Box
+                            sx={{
+                              width: '100%',
                               pt: '56.25%',
                               position: 'relative',
                               borderRadius: 2,
@@ -429,7 +476,7 @@ const UploadPage: React.FC = () => {
                               flexGrow: 1
                             }}
                           >
-                            <Box 
+                            <Box
                               component="img"
                               src={dashBoard}
                               alt="분석 대시보드 예시"
@@ -443,19 +490,19 @@ const UploadPage: React.FC = () => {
                               }}
                             />
                           </Box>
-                          
+
                           <Typography variant="caption" color="text.secondary">
                             분석이 완료되면 발표 속도, 음량, 비언어적 요소 등 전반적인 분석 결과를 확인할 수 있습니다.
                           </Typography>
                         </CardContent>
                       </Card>
                     </Grid>
-                    
+
                     {/* STEP 2 카드 */}
                     <Grid item xs={12} sm={6} sx={{ display: 'flex' }}>
-                      <Card 
-                        sx={{ 
-                          borderRadius: 3, 
+                      <Card
+                        sx={{
+                          borderRadius: 3,
                           boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
                           width: '100%',
                           transition: 'all 0.3s ease-in-out',
@@ -483,7 +530,7 @@ const UploadPage: React.FC = () => {
                       >
                         <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography 
+                            <Typography
                               variant="subtitle1"
                               component="h3"
                               fontWeight={600}
@@ -496,18 +543,18 @@ const UploadPage: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                           </Box>
-                          
-                          <Typography 
-                            variant="body2" 
+
+                          <Typography
+                            variant="body2"
                             fontWeight={500}
                             sx={{ mb: 1 }}
                           >
                             요소별 세부 평가 결과 확인
                           </Typography>
-                          
-                          <Box 
-                            sx={{ 
-                              width: '100%', 
+
+                          <Box
+                            sx={{
+                              width: '100%',
                               pt: '56.25%',
                               position: 'relative',
                               borderRadius: 2,
@@ -517,7 +564,7 @@ const UploadPage: React.FC = () => {
                               flexGrow: 1
                             }}
                           >
-                            <Box 
+                            <Box
                               component="img"
                               src={evaluationDetail}
                               alt="세부 평가 화면 예시"
@@ -530,7 +577,7 @@ const UploadPage: React.FC = () => {
                                 objectFit: 'cover'
                               }}
                             />
-                            
+
                             {/* 세부 평가 화면의 차트 영역 강조 표시 */}
                             {/*<Box*/}
                             {/*  sx={{*/}
@@ -545,7 +592,7 @@ const UploadPage: React.FC = () => {
                             {/*  }}*/}
                             {/*/>*/}
                           </Box>
-                          
+
                           <Typography variant="caption" color="text.secondary">
                             발표의 각 항목별 세부 분석 결과와 개선 피드백을 받을 수 있습니다.
                           </Typography>
@@ -555,7 +602,7 @@ const UploadPage: React.FC = () => {
                   </Grid>
                 </Box>
               </Grid>
-              
+
               {/* 오른쪽 컬럼: 주의사항 영역 */}
               <Grid item xs={12} md={6}>
                 <Paper
@@ -591,18 +638,18 @@ const UploadPage: React.FC = () => {
                     flexDirection: 'column'
                   }}
                 >
-                  <Typography 
-                    variant="h6" 
+                  <Typography
+                    variant="h6"
                     fontWeight={600}
                     sx={{ mb: 2 }}
                   >
                     영상 업로드 주의사항
                   </Typography>
-                  
+
                   {/* 이미지 영역 */}
-                  <Box 
-                    sx={{ 
-                      width: '100%', 
+                  <Box
+                    sx={{
+                      width: '100%',
                       pt: '40%', // 높이 비율 감소
                       position: 'relative',
                       borderRadius: 2,
@@ -611,7 +658,7 @@ const UploadPage: React.FC = () => {
                       backgroundColor: '#f8f8f8'
                     }}
                   >
-                    <Box 
+                    <Box
                       component="img"
                       src={guideImg}
                       alt="발표 영상 가이드 이미지"
@@ -625,13 +672,13 @@ const UploadPage: React.FC = () => {
                       }}
                     />
                   </Box>
-                  
+
                   {/* 주의사항 내용 영역 (텍스트 크기 감소) */}
                   <Box sx={{ px: 1, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
                       업로드 전 확인사항
                     </Typography>
-                    
+
                     <Box component="ul" sx={{ pl: 2, mb: 1.5, mt: 0.5 }}>
                       <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
                         <b>파일 형식:</b> MP4 형식의 영상만 업로드 가능합니다.
@@ -643,11 +690,11 @@ const UploadPage: React.FC = () => {
                         <b>영상 길이:</b> 4분 이내의 발표 영상이 최적의 분석 결과를 제공합니다.
                       </Typography>
                     </Box>
-                    
+
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
                       최적의 영상 촬영 조건:
                     </Typography>
-                    
+
                     <Box component="ul" sx={{ pl: 2, mt: 0.5 }}>
                       <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
                         <b>조명:</b> 발표자의 얼굴과 몸이 잘 보이는 밝은 환경에서 촬영하세요.
@@ -659,7 +706,7 @@ const UploadPage: React.FC = () => {
                         <b>소리:</b> 주변 소음이 적은 환경에서 마이크를 사용하여 녹음하세요.
                       </Typography>
                     </Box>
-                    
+
                     {/* 추가 팁 */}
                     <Box sx={{ mt: 'auto', bgcolor: '#f5f5f5', p: 2, borderRadius: 2 }}>
                       <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
@@ -677,9 +724,9 @@ const UploadPage: React.FC = () => {
 
             {/* 에러 메시지 */}
             {error && (
-              <Alert 
-                severity="error" 
-                sx={{ mb: 4 }} 
+              <Alert
+                severity="error"
+                sx={{ mb: 4 }}
                 onClose={() => setError(null)}
               >
                 {error}
@@ -687,13 +734,13 @@ const UploadPage: React.FC = () => {
             )}
           </Box>
         </Fade>
-        
+
         {/* 푸터 */}
-        <Box 
+        <Box
           component="footer"
-          sx={{ 
-            mt: 8, 
-            textAlign: 'center', 
+          sx={{
+            mt: 8,
+            textAlign: 'center',
             borderTop: '1px solid #eee',
             pt: 4,
             pb: 2,

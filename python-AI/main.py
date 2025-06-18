@@ -7,6 +7,10 @@
 #    · txt 대본 업로드 → run_script_feedback() 으로 대본 분석
 # ─────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────
+# FastAPI Progress 관리 추가 (2025-06-19)
+#  · 영상 업로드 시 진행률 표시
+# ─────────────────────────────────────────
 from __future__ import annotations
 
 import os
@@ -17,6 +21,8 @@ import uvicorn
 import shutil
 import asyncio
 import logging
+import uuid
+from fastapi import BackgroundTasks
 from datetime import datetime
 from typing import Optional, AsyncGenerator
 
@@ -30,6 +36,8 @@ from fastapi import (
     Header,
     Form,
     Request,
+    BackgroundTasks,    
+
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -84,6 +92,25 @@ SECRET = (
 )
 logging.info(f"FastAPI SECRET: {SECRET}")
 
+
+# progress_dict: task_id → { "stage": str, "progress": int } // 진행률 관리용
+# 진행률 관리용 딕셔너리
+progress_dict: dict[str, dict[str, object]] = {}
+
+STAGES = [
+    "파일 업로드 중",
+    "오디오 추출 중",
+    "전처리(샘플링·노이즈 제거) 중",
+    "자막 변환(Whisper) 중",
+    "음성·볼륨 분석 중",
+    "비언어 분석 중",
+    "결과 저장 및 정리 중"
+]
+
+
+
+
+
 # ─────────────────────────────────────────
 # JWT 검증 유틸
 # ─────────────────────────────────────────
@@ -130,73 +157,202 @@ def cleanup_intermediate_files(video_name: str):
     logging.info(f"[CLEANUP] {video_name} 분석 완료.")
 
 
-# ─────────────────────────────────────────
-# ① 영상(MP4) 업로드  →  음성·비언어 분석
-# ─────────────────────────────────────────
-@app.post("/fastapi/api/upload-video/")
+async def process_video(filename: str, user_id: int, task_id: str):
+    total = len(STAGES)
+    loop = asyncio.get_running_loop() # 현재 이벤트 루프 가져오기 - 진행률 작업하면서 추가함
+
+    try:
+        for idx, stage in enumerate(STAGES[1:], start=1):
+            progress_dict[task_id]["stage"] = stage
+            progress_dict[task_id]["progress"] = int(idx / total * 100)
+            logging.info(f"[{task_id}] {stage} ({progress_dict[task_id]['progress']}%)")
+
+            await asyncio.sleep(0)
+
+            # 실제 분석 단계별 작업 (예시)
+            if stage == "오디오 추출 중":
+                await extract_audio(
+                    os.path.join(UPLOAD_DIR, filename),
+                    os.path.join(UPLOAD_DIR, filename.replace(".mp4", ".wav"))
+                )
+            elif stage == "전처리(샘플링·노이즈 제거) 중":
+                audio_path = os.path.join(UPLOAD_DIR, filename.replace(".mp4", ".wav"))
+                tmp1 = audio_path.replace(".wav", "_resampled.wav")
+                tmp2 = audio_path.replace(".wav", "_denoised.wav")
+                tmp3 = audio_path.replace(".wav", "_filtered.wav")
+                change_sampling_rate(audio_path, 16000, tmp1)
+                remove_noise(tmp1, tmp2)
+                save_filtered_audio(tmp2, tmp3)
+                os.replace(tmp3, audio_path)
+                for t in [tmp1, tmp2]:
+                    if os.path.exists(t): os.remove(t)
+            elif stage == "자막 변환(Whisper) 중":
+                transcription = await transcribe_audio(
+                    os.path.join(UPLOAD_DIR, filename.replace(".mp4", ".wav"))
+                )
+            elif stage == "음성·볼륨 분석 중":
+                speed_task = asyncio.get_running_loop().run_in_executor(
+                    None, analyze_speaking_speed, transcription
+                )
+                volume_task = asyncio.get_running_loop().run_in_executor(
+                    None, analyze_volume, transcription,
+                    os.path.join(UPLOAD_DIR, filename.replace(".mp4", ".wav"))
+                )
+                speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
+                speed_score = evaluate_speaking_speed(speaking_speed)
+                volume_score = evaluate_volume(volume_analysis)
+            elif stage == "비언어 분석 중":
+                nonverb_task = loop.run_in_executor(
+                    None,
+                    video_nonverbal_analysis,
+                    os.path.abspath(os.path.join(UPLOAD_DIR, filename))
+                )
+                nonverbal = await nonverb_task
+            elif stage == "결과 저장 및 정리 중":
+                doc = {
+                    "user_id": user_id,
+                    "filename": filename,
+                    "speaking_speed": speaking_speed,
+                    "speaking_evaluation": speed_score,
+                    "volume_analysis": volume_analysis,
+                    "volume_evaluation": volume_score,
+                    "nonverbal_analysis": nonverbal,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+                result = await collection.insert_one(doc)
+                doc["_id"] = str(result.inserted_id)
+                logging.info(f"Mongo 저장 완료: {doc['_id']}")
+                # 임시 파일 정리
+                base = os.path.splitext(filename)[0]
+                paths = [
+                    os.path.join(BASE_DIR, "models", "nonvarbal", "data", "frames", base),
+                    os.path.join(BASE_DIR, "models", "nonvarbal", "data", "keypoints", base),
+                    os.path.join(BASE_DIR, "models", "nonvarbal", "data", "visualizations", base),
+                    os.path.join(BASE_DIR, "models", "nonvarbal", "data", "test_results.pkl"),
+                    os.path.join(BASE_DIR, "models", "nonvarbal", "data", "inference_results.json"),
+                ]
+                for p in paths:
+                    if os.path.isdir(p): shutil.rmtree(p)
+                    elif os.path.isfile(p): os.remove(p)
+        # 완료 상태
+        progress_dict[task_id]["stage"] = "완료"
+        progress_dict[task_id]["progress"] = 100
+        logging.info(f"[{task_id}] 분석 완료")
+    except Exception as e:
+        logging.error(f"[{task_id}] 분석 중 오류: {e}")
+        progress_dict[task_id]["stage"] = "오류 발생"
+        raise
+
+
+
+@app.post("/fastapi/api/upload-video/", status_code=202)  #status_code 수정 (202)
 async def upload_video(
+    background_tasks: BackgroundTasks,   
     file: UploadFile = File(...),
     user_id: int = Depends(get_current_user),
 ):
     if not file.filename.endswith(".mp4"):
         raise HTTPException(status_code=400, detail="Only MP4 files are allowed")
 
-    # 1) 파일 저장
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    logging.info(f"Video uploaded: {file_path}")
+    # 추가: task_id 생성 및 초기화
+    task_id = str(uuid.uuid4())
+    progress_dict[task_id] = {"stage": STAGES[0], "progress": 0}
 
-    # 2) 오디오 추출 및 전처리
-    audio_path = file_path.replace(".mp4", ".wav")
-    await extract_audio(file_path, audio_path)
+    # 파일 저장
+    save_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(save_path, "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+    logging.info(f"[{task_id}] {STAGES[0]} 완료: {save_path}")
 
-    temp_resampled = audio_path.replace(".wav", "_resampled.wav")
-    temp_denoised = audio_path.replace(".wav", "_denoised.wav")
-    temp_filtered = audio_path.replace(".wav", "_filtered.wav")
+    # 추가: 백그라운드 작업 시작
+    background_tasks.add_task(process_video, file.filename, user_id, task_id)
 
-    try:
-        change_sampling_rate(audio_path, 16000, temp_resampled)
-        remove_noise(temp_resampled, temp_denoised)
-        save_filtered_audio(temp_denoised, temp_filtered)
-        os.replace(temp_filtered, audio_path)  # 최종 파일
-    finally:
-        for tmp in [temp_resampled, temp_denoised, temp_filtered]:
-            if os.path.exists(tmp):
-                os.remove(tmp)
+    # 반환값 수정
+    return {"task_id": task_id,      "filename": file.filename  
+}
 
-    # 3) Whisper → 자막
-    transcription = await transcribe_audio(audio_path)
+# ─────────────────────────────────────────
+@app.get("/fastapi/api/progress/{task_id}")  # 진행률 엔드포인트
+async def get_progress(task_id: str):
+    info = progress_dict.get(task_id)
+    if not info:
+        raise HTTPException(status_code=404, detail="Invalid task_id")
+    return info  # {"stage": "...", "progress": 30}
 
-    # 4) 음성·볼륨 분석 (비동기 병렬)
-    loop = asyncio.get_running_loop()
-    speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription)
-    volume_task = loop.run_in_executor(None, analyze_volume, transcription, audio_path)
-    speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
 
-    speed_score = evaluate_speaking_speed(speaking_speed)
-    volume_score = evaluate_volume(volume_analysis)
 
-    # 5) 비언어 분석
-    nonverbal_analysis = video_nonverbal_analysis(os.path.abspath(file_path))
 
-    # 6) MongoDB 저장 (대본 분석은 별도 엔드포인트에서 넣음)
-    document = {
-        "user_id": user_id,
-        "filename": file.filename,
-        "speaking_speed": speaking_speed,
-        "speaking_evaluation": speed_score,
-        "volume_analysis": volume_analysis,
-        "volume_evaluation": volume_score,
-        "nonverbal_analysis": nonverbal_analysis,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-    result = await collection.insert_one(document)
-    document["_id"] = str(result.inserted_id)
-    logging.info(f"Mongo 저장 완료: {document['_id']}")
 
-    cleanup_intermediate_files(os.path.splitext(file.filename)[0])
-    return document
+
+
+
+# # ─────────────────────────────────────────
+# # ① 영상(MP4) 업로드  →  음성·비언어 분석
+# # ─────────────────────────────────────────
+# @app.post("/fastapi/api/upload-video/", status_code=202)
+# async def upload_video(
+#     file: UploadFile = File(...),
+#     user_id: int = Depends(get_current_user),
+# ):
+#     if not file.filename.endswith(".mp4"):
+#         raise HTTPException(status_code=400, detail="Only MP4 files are allowed")
+
+#     # 1) 파일 저장
+#     file_path = os.path.join(UPLOAD_DIR, file.filename)
+#     with open(file_path, "wb") as buffer:
+#         shutil.copyfileobj(file.file, buffer)
+#     logging.info(f"Video uploaded: {file_path}")
+
+#     # 2) 오디오 추출 및 전처리
+#     audio_path = file_path.replace(".mp4", ".wav")
+#     await extract_audio(file_path, audio_path)
+
+#     temp_resampled = audio_path.replace(".wav", "_resampled.wav")
+#     temp_denoised = audio_path.replace(".wav", "_denoised.wav")
+#     temp_filtered = audio_path.replace(".wav", "_filtered.wav")
+
+#     try:
+#         change_sampling_rate(audio_path, 16000, temp_resampled)
+#         remove_noise(temp_resampled, temp_denoised)
+#         save_filtered_audio(temp_denoised, temp_filtered)
+#         os.replace(temp_filtered, audio_path)  # 최종 파일
+#     finally:
+#         for tmp in [temp_resampled, temp_denoised, temp_filtered]:
+#             if os.path.exists(tmp):
+#                 os.remove(tmp)
+
+#     # 3) Whisper → 자막
+#     transcription = await transcribe_audio(audio_path)
+
+#     # 4) 음성·볼륨 분석 (비동기 병렬)
+#     loop = asyncio.get_running_loop()
+#     speed_task = loop.run_in_executor(None, analyze_speaking_speed, transcription)
+#     volume_task = loop.run_in_executor(None, analyze_volume, transcription, audio_path)
+#     speaking_speed, volume_analysis = await asyncio.gather(speed_task, volume_task)
+
+#     speed_score = evaluate_speaking_speed(speaking_speed)
+#     volume_score = evaluate_volume(volume_analysis)
+
+#     # 5) 비언어 분석
+#     nonverbal_analysis = video_nonverbal_analysis(os.path.abspath(file_path))
+
+#     # 6) MongoDB 저장 (대본 분석은 별도 엔드포인트에서 넣음)
+#     document = {
+#         "user_id": user_id,
+#         "filename": file.filename,
+#         "speaking_speed": speaking_speed,
+#         "speaking_evaluation": speed_score,
+#         "volume_analysis": volume_analysis,
+#         "volume_evaluation": volume_score,
+#         "nonverbal_analysis": nonverbal_analysis,
+#         "timestamp": datetime.utcnow().isoformat(),
+#     }
+#     result = await collection.insert_one(document)
+#     document["_id"] = str(result.inserted_id)
+#     logging.info(f"Mongo 저장 완료: {document['_id']}")
+
+#     cleanup_intermediate_files(os.path.splitext(file.filename)[0])
+#     return document
 
 
 # ─────────────────────────────────────────
