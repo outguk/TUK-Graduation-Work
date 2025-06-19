@@ -11,13 +11,26 @@ import {
   Grid,
   Card,
   CardContent,
-  Tooltip,
-  IconButton, LinearProgress
+  Tooltip, IconButton, LinearProgress,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    RadioGroup,
+    FormControl,
+    FormControlLabel,
+    FormLabel,
+    Radio
+
+
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
   ArrowBack as ArrowBackIcon,
-  InfoOutlined as InfoOutlinedIcon
+  InfoOutlined as InfoOutlinedIcon,
+    CheckCircle as CheckCircleIcon,
+    RadioButtonUnchecked as RadioButtonUncheckedIcon,
+
 } from '@mui/icons-material';
 import axios from 'axios';
 import guideImg from '../assets/guide.png';
@@ -37,6 +50,54 @@ const UploadPage: React.FC = () => {
   const [progress, setProgress] = useState<number>(0);
   const [stage, setStage] = useState<string>('');
 
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
+
+  const steps = [
+        '파일 저장 중',
+        '오디오 추출 중',
+        '전처리(샘플링·노이즈 제거) 중',
+        '자막 변환(Whisper) 중',
+        '음성·볼륨 분석 중',
+        '비언어 분석 중',
+        '결과 저장 및 정리 중',
+    ];
+
+  const currentStep = steps.findIndex(s => s === stage);
+    const quizzes = [
+        {
+            question: '발표할 때 목소리는 어떻게 조절하는 것이 좋을까요?',
+            options: [
+                { value: 'opt1', label: '일정하게 동일한 높이로 유지한다' },
+                { value: 'opt2', label: '감정에 따라 크게 변화시킨다' },
+                { value: 'opt3', label: '중간중간 잠깐 멈추며 템포를 조절한다' },
+            ],
+            correct: 'opt3',
+            feedback: '정답입니다! 중간중간 멈춤을 주면 청중이 이해하기 좋아요.',
+        },
+        {
+            question: '청중의 시선을 잡기 위해 발표 시작에 활용할 수 있는 것은?',
+            options: [
+                { value: 'opt1', label: '길고 복잡한 인사말' },
+                { value: 'opt2', label: '흥미로운 통계나 질문 제시' },
+                { value: 'opt3', label: '자기소개만 간단히' },
+            ],
+            correct: 'opt2',
+            feedback: '정답입니다! 통계나 질문으로 호기심을 자극하세요.',
+        },
+        {
+            question: '발표 자료에 색상을 사용할 때 주의할 점은?',
+            options: [
+                { value: 'opt1', label: '강렬한 원색을 가득 채운다' },
+                { value: 'opt2', label: '밝은 배경에 선명한 대비 유지' },
+                { value: 'opt3', label: '텍스트와 배경 색이 비슷하게' },
+            ],
+            correct: 'opt2',
+            feedback: '정답입니다! 대비가 높아야 가독성이 좋아집니다.',
+        },
+    ]
+
 
     // Animation effect on mount
     const navigate = useNavigate();
@@ -47,7 +108,10 @@ const UploadPage: React.FC = () => {
 
     useEffect(() => {
         if (!taskId) return;
-        const interval = setInterval(async () => {
+        let isCancelled = false;
+        let pollInterval = 1000; // 초기 폴링 간격
+
+        const poll = async () => {
             try {
                 const res = await axios.get<{ stage: string; progress: number }>(
                     `http://localhost:5000/fastapi/api/progress/${taskId}`
@@ -55,16 +119,37 @@ const UploadPage: React.FC = () => {
                 setStage(res.data.stage);
                 setProgress(res.data.progress);
 
-                if (res.data.progress >= 100) {
-                    clearInterval(interval);
-                    navigate(`/analysis/${file?.name}`);
+                // 초반(진행률 < 50%)엔 0.1초, 그 이후엔 다시 1초로
+                if (res.data.progress < 50) {
+                    pollInterval = 100;
+                } else {
+                    pollInterval = 1000;
                 }
-            } catch {
-                clearInterval(interval);
+                if (res.data.progress >= 100) {
+                    setStage(res.data.stage);
+                    setProgress(100);
+                    setTimeout(() => {
+                        if (!isCancelled) {
+                            navigate(`/analysis/${file?.name}`);
+                        }
+                        }, 3000);
+                    return;
+                }
+                // 취소되지 않았다면 다음 호출 예약
+                if (!isCancelled) {
+                    setTimeout(poll, pollInterval);
+                }
+            } catch (e) {
                 setError('진행률 조회 중 오류가 발생했습니다.');
             }
-        }, 3000);
-        return () => clearInterval(interval);
+        };
+
+        // 첫 호출
+        poll();
+
+        return () => {
+            isCancelled = true;
+        };
     }, [taskId, file, navigate]);
 
 
@@ -109,7 +194,17 @@ const UploadPage: React.FC = () => {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+    const handleQuizSubmit = () => {
+        const quiz = quizzes[quizIndex]
+        if (selectedAnswer === quiz.correct) {
+            setQuizFeedback(quiz.feedback)
+        } else {
+            setQuizFeedback('틀렸어요. 다시 생각해 보세요.')
+        }
+    };
+
+
+    const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(true);
@@ -384,17 +479,7 @@ const UploadPage: React.FC = () => {
                                 ? '업로드 중...'
                                 : '업로드 및 분석 시작'}
                     </Button>
-                      {taskId && (
-                          <Box sx={{ width:'100%', mt:3 }}>
-                              <Typography variant="body2" align="center" sx={{ mb:1 }}>
-                                  현재 단계: <strong>{stage}</strong>
-                              </Typography>
-                              <Typography variant="body2" align="center">
-                                  진행률: {progress}%
-                              </Typography>
-                              <LinearProgress variant="determinate" value={progress} sx={{ mt:1 }}/>
-                          </Box>
-                      )}
+
 
                   </Box>
                 </Paper>
@@ -604,122 +689,204 @@ const UploadPage: React.FC = () => {
               </Grid>
 
               {/* 오른쪽 컬럼: 주의사항 영역 */}
-              <Grid item xs={12} md={6}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: { xs: 2, md: 3 },
-                    borderRadius: 4,
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                    border: '1px solid #eaeaea',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    transition: 'all 0.3s ease',
-                    height: '100%', // 좌측 업로드 박스 + 분석 가이드 높이와 맞춤
-                    '&:hover': {
-                      boxShadow: '0 6px 25px rgba(0,0,0,0.12)',
-                      transform: 'translateY(-4px)', // 호버 시 위로 약간 이동하는 애니메이션 추가
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '4px',
-                      background: '#000',
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
-                    },
-                    '&:hover::after': {
-                      opacity: 1
-                    },
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    fontWeight={600}
-                    sx={{ mb: 2 }}
-                  >
-                    영상 업로드 주의사항
-                  </Typography>
+                <Grid item xs={12} md={6}>
+                    {taskId ? (
+                        // 분석 중: 단계별 진행현황
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                borderRadius: 4,
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                                height: '100%',
+                            }}
+                        >
+                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                분석 진행 단계
+                            </Typography>
+                            <List disablePadding>
+                                {steps.map((label, idx) => (
+                                    <ListItem key={label} disablePadding>
+                                        <ListItemIcon sx={{ minWidth: 32 }}>
+                                            {idx < currentStep && <CheckCircleIcon color="success" fontSize="small" />}
+                                            {idx === currentStep && <CircularProgress size={16} />}
+                                            {idx > currentStep && <RadioButtonUncheckedIcon color="disabled" fontSize="small" />}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={label}
+                                            primaryTypographyProps={{
+                                                variant: 'body2',
+                                                color: idx <= currentStep ? 'text.primary' : 'text.disabled',
+                                            }}
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
 
-                  {/* 이미지 영역 */}
-                  <Box
-                    sx={{
-                      width: '100%',
-                      pt: '40%', // 높이 비율 감소
-                      position: 'relative',
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      mb: 2,
-                      backgroundColor: '#f8f8f8'
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={guideImg}
-                      alt="발표 영상 가이드 이미지"
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain'
-                      }}
-                    />
-                  </Box>
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="body2" align="center">
+                                    진행률: {progress}%
+                                </Typography>
+                                <LinearProgress variant="determinate" value={progress} sx={{ mt: 1 }} />
+                            </Box>
+                            <Box sx={{ mt: 3, px: 1 }}>
+                                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                                    퀴즈: 발표 팁 ({quizIndex + 1}/{quizzes.length})
+                                </Typography>
+                                <FormControl component="fieldset">
+                                    <FormLabel component="legend">
+                                        {quizzes[quizIndex].question}
+                                    </FormLabel>
+                                    <RadioGroup
+                                        value={selectedAnswer}
+                                        onChange={e => setSelectedAnswer(e.target.value)}
+                                    >
+                                        {quizzes[quizIndex].options.map(opt => (
+                                            <FormControlLabel
+                                                key={opt.value}
+                                                value={opt.value}
+                                                control={<Radio size="small" />}
+                                                label={opt.label}
+                                            />
+                                        ))}
+                                    </RadioGroup>
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        sx={{ mt: 1 }}
+                                        onClick={handleQuizSubmit}
+                                        disabled={!selectedAnswer}
+                                    >
+                                        제출
+                                    </Button>
+                                    {quizFeedback && (
+                                        <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                                            {quizFeedback}
+                                        </Typography>
+                                    )}
+                                    {quizFeedback && quizIndex < quizzes.length - 1 && (
+                                        <Button
+                                            size="small"
+                                            sx={{ mt: 1, ml: 1 }}
+                                            onClick={() => {
+                                                setQuizIndex(q => q + 1)
+                                                setSelectedAnswer('')
+                                                setQuizFeedback(null)
+                                            }}
+                                        >
+                                            다음 문제
+                                        </Button>
+                                    )}
+                                </FormControl>
+                            </Box>
+                        </Paper>
+                    ) : (
+                        // 업로드 전: 기존 주의사항
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: { xs: 2, md: 3 },
+                                borderRadius: 4,
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                                border: '1px solid #eaeaea',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                transition: 'all 0.3s ease',
+                                height: '100%',
+                                '&:hover': {
+                                    boxShadow: '0 6px 25px rgba(0,0,0,0.12)',
+                                    transform: 'translateY(-4px)',
+                                },
+                                '&::after': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '4px',
+                                    background: '#000',
+                                    opacity: 0,
+                                    transition: 'opacity 0.3s ease',
+                                },
+                                '&:hover::after': { opacity: 1 },
+                                display: 'flex',
+                                flexDirection: 'column',
+                            }}
+                        >
+                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                영상 업로드 주의사항
+                            </Typography>
 
-                  {/* 주의사항 내용 영역 (텍스트 크기 감소) */}
-                  <Box sx={{ px: 1, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                      업로드 전 확인사항
-                    </Typography>
-
-                    <Box component="ul" sx={{ pl: 2, mb: 1.5, mt: 0.5 }}>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>파일 형식:</b> MP4 형식의 영상만 업로드 가능합니다.
-                      </Typography>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>최대 용량:</b> 300MB 이하의 영상을 권장합니다.
-                      </Typography>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>영상 길이:</b> 4분 이내의 발표 영상이 최적의 분석 결과를 제공합니다.
-                      </Typography>
-                    </Box>
-
-                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                      최적의 영상 촬영 조건:
-                    </Typography>
-
-                    <Box component="ul" sx={{ pl: 2, mt: 0.5 }}>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>조명:</b> 발표자의 얼굴과 몸이 잘 보이는 밝은 환경에서 촬영하세요.
-                      </Typography>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>거리:</b> 발표자의 전신이 잘 보이도록 적절한 거리를 유지하세요.
-                      </Typography>
-                      <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        <b>소리:</b> 주변 소음이 적은 환경에서 마이크를 사용하여 녹음하세요.
-                      </Typography>
-                    </Box>
-
-                    {/* 추가 팁 */}
-                    <Box sx={{ mt: 'auto', bgcolor: '#f5f5f5', p: 2, borderRadius: 2 }}>
-                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                        💡 프로 팁
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        영상을 업로드하기 전에 미리보기로 확인하여 화면과 소리가 잘 녹화되었는지 검토하세요.
-                        최적의 분석 결과를 위해 정면을 바라보고 선명한 발표 모습을 촬영하세요.
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
+                            {/* guideImg */}
+                            <Box
+                                sx={{
+                                    width: '100%',
+                                    pt: '40%',
+                                    position: 'relative',
+                                    borderRadius: 2,
+                                    overflow: 'hidden',
+                                    mb: 2,
+                                    backgroundColor: '#f8f8f8',
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={guideImg}
+                                    alt="발표 영상 가이드 이미지"
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'contain',
+                                    }}
+                                />
+                            </Box>
+                            {/* 확인사항 리스트 */}
+                            <Box sx={{ px: 1, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    업로드 전 확인사항
+                                </Typography>
+                                <Box component="ul" sx={{ pl: 2, mb: 1.5, mt: 0.5 }}>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>파일 형식:</b> MP4 형식의 영상만 업로드 가능합니다.
+                                    </Typography>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>최대 용량:</b> 300MB 이하의 영상을 권장합니다.
+                                    </Typography>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>영상 길이:</b> 4분 이내의 발표 영상이 최적의 분석 결과를 제공합니다.
+                                    </Typography>
+                                </Box>
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    최적의 영상 촬영 조건:
+                                </Typography>
+                                <Box component="ul" sx={{ pl: 2, mt: 0.5 }}>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>조명:</b> 발표자의 얼굴과 몸이 잘 보이는 밝은 환경에서 촬영하세요.
+                                    </Typography>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>거리:</b> 발표자의 전신이 잘 보이도록 적절한 거리를 유지하세요.
+                                    </Typography>
+                                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                                        <b>소리:</b> 주변 소음이 적은 환경에서 마이크를 사용하여 녹음하세요.
+                                    </Typography>
+                                </Box>
+                                {/* 프로 팁 */}
+                                <Box sx={{ mt: 'auto', bgcolor: '#f5f5f5', p: 2, borderRadius: 2 }}>
+                                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                                        💡 프로 팁
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        영상을 업로드하기 전에 미리보기로 확인하여 화면과 소리가 잘 녹화되었는지 검토하세요.
+                                        최적의 분석 결과를 위해 정면을 바라보고 선명한 발표 모습을 촬영하세요.
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Paper>
+                    )}
+                </Grid>
             </Grid>
 
             {/* 에러 메시지 */}
