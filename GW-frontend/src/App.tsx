@@ -1,11 +1,9 @@
-// src/App.tsx
 import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from './styles/theme'; // 경로는 너의 위치에 맞게 수정
+import theme from './styles/theme';
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
-// 로딩스피너(각 화면을 별도의 청크로 분리해 사용자가 방문하는 페이지만 로드하는 방식) 적용
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
-// 새로운 방식: lazy 로딩
+
 const HomePage = lazy(() => import('./pages/HomePage'));
 const SignInPage = lazy(() => import('./pages/SignInPage'));
 const SignUpPage = lazy(() => import('./pages/SignUpPage'));
@@ -15,9 +13,8 @@ const UploadPage = lazy(() => import('./pages/UploadPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
 const SpeechEvaluationDetailPage = lazy(() => import('./pages/SpeechEvaluationDetailPage'));
 const NonverbalEvaluationDetailPage = lazy(() => import('./pages/NonverbalEvaluationDetailPage'));
-//스크립트
 const ScriptUpload = lazy(() => import('./pages/ScriptUpload'));
-const ScriptPage   = lazy(() => import('./pages/ScriptPage'));
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -29,7 +26,6 @@ function App() {
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/main" element={<MainPage />} />
-            <Route path="/analysis" element={<AnalysisDashboardPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/profile" element={<UserProfilePage />} />
 
@@ -37,17 +33,12 @@ function App() {
             <Route path="/analysis" element={<AnalysisDashboardPage />} />
             <Route path="/analysis/:presentationId" element={<AnalysisDashboardPage />} />
 
-            {/* ───────── 대본 업로드 / 결과  ───────── */}
-            <Route path="/analysis/:filename/script"          element={<ScriptUpload />} />
-            <Route path="/analysis/:filename/script-display" element={<ScriptPage   />} />
-
+            {/* 대본 업로드 */}
+            <Route path="/analysis/script-upload" element={<ScriptUpload />} />
 
             {/* Detail analysis pages */}
             <Route path="/analysis/:type/:presentationId" element={<SpeechEvaluationDetailPage />} />
             <Route path="/analysis/nonverbal/:presentationId" element={<NonverbalEvaluationDetailPage />} />
-
-
-
           </Routes>
         </Suspense>
       </Router>

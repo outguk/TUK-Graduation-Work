@@ -24,6 +24,7 @@ export default defineConfig({
     proxy: {
       '/spring/api': {
         target: 'http://localhost:8080',
+        //target: 'http://14.36.21.67:32314',
         changeOrigin: true,
         secure: false
       },
@@ -31,7 +32,13 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false
-      }
+      },
+      '/fastapi': {
+        target: 'http://localhost:5000', // 로컬 테스트
+        //target: 'http://14.36.21.67:32312', // 원격 시연 (주석 처리, 필요 시 활성화)
+        changeOrigin: true,
+        secure: false,
+      },
     }
   },
   build: {

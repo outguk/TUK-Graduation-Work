@@ -47,6 +47,8 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import PresentationSidebar from '../components/PresentationSidebar';
+import ScriptPage from './ScriptPage'; // ScriptPage 컴포넌트 import
+
 
 /**
  * 백엔드 개발자 참고사항:
@@ -57,6 +59,7 @@ interface PresentationItem {
   title: string;     // 발표 제목 (filename에서 확장자 제거)
   date: string;      // 발표 날짜 (YYYY.MM.DD)
   duration: string;  // 발표 길이 (M:SS, 기본값 제공)
+  type: 'video' | 'script'; // 분석 유형 추가
 }
 
 interface UserProfile {
@@ -93,11 +96,13 @@ interface ScriptAnalysis {
   uncertainty_count: number;
   subject_verb_mismatch_count: number;
   profanity_count: number;
-  non_honorific_examples: string[];
+  non_honorific_examples: [number, string][];
   uncertainty_examples: [number, string][];
-  subject_verb_examples: string[];
-  profanity_examples: string[];
-  otas_detected: any[];      // 실제 구조에 맞게 세부 타입 지정 가능
+  subject_verb_examples: [number, string][];
+  profanity_examples: [number, string][];
+  otas_detected: [number, string, number, string][];
+  word_repeat_counter: Record<string, number>;
+  all_words: string[];
 }
 
 const AnalysisDashboardPage: React.FC = () => {
@@ -115,6 +120,7 @@ const AnalysisDashboardPage: React.FC = () => {
   const [presentations, setPresentations] = useState<PresentationItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: '' });
   const [selectedPresentationId, setSelectedPresentationId] = useState<string | null>(presentationId || null);
+  const [selectedType, setSelectedType] = useState<'video' | 'script' | null>(null); // 선택된 분석 유형
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [paceData, setPaceData] = useState<PaceDataPoint[]>([]);
   const [volumeData, setVolumeData] = useState<VolumeDataPoint[]>([]);
@@ -194,11 +200,12 @@ const AnalysisDashboardPage: React.FC = () => {
         });
         setUserProfile({ name: profileResponse.data.name });
 
-        // 발표 목록 가져오기
+        // 영상 및 대본 분석 목록 가져오기
         const analysesResponse = await axios.get('/spring/api/my-analyses', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const presentationsData: PresentationItem[] = analysesResponse.data.analyses.map((item: any) => ({
+
+        const videoPresentations: PresentationItem[] = analysesResponse.data.video_analyses.map((item: any) => ({
           id: item.filename,
           title: item.filename.split('.')[0],
           date: new Date(item.timestamp).toLocaleDateString('ko-KR', {
@@ -207,13 +214,32 @@ const AnalysisDashboardPage: React.FC = () => {
             day: '2-digit',
           }).replace(/\//g, '.'),
           duration: '0:45', // 백엔드에서 제공 시 대체
+          type: 'video',
         }));
-        setPresentations(presentationsData);
 
-        // presentationId가 없으면 첫 번째 발표 선택
-        if (!selectedPresentationId && presentationsData.length > 0) {
-          setSelectedPresentationId(presentationsData[0].id);
-          navigate(`/analysis/${presentationsData[0].id}`, { replace: true });
+        const scriptPresentations: PresentationItem[] = analysesResponse.data.script_analyses.map((item: any) => ({
+          id: item._id,
+          title: item.filename.split('.')[0],
+          date: new Date(item.timestamp).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).replace(/\//g, '.'),
+          duration: 'N/A',
+          type: 'script',
+        }));
+
+        const allPresentations = [...videoPresentations, ...scriptPresentations];
+        setPresentations(allPresentations);
+
+        // presentationId가 없으면 첫 번째 항목 선택
+        if (!selectedPresentationId && allPresentations.length > 0) {
+          setSelectedPresentationId(allPresentations[0].id);
+          setSelectedType(allPresentations[0].type);
+          navigate(`/analysis/${allPresentations[0].id}`, { replace: true });
+        } else if (selectedPresentationId) {
+          const selectedItem = allPresentations.find((p) => p.id === selectedPresentationId);
+          setSelectedType(selectedItem?.type || null);
         }
       } catch (err: any) {
         setError(err.response?.data?.error || '초기 데이터를 불러오는 중 오류가 발생했습니다.');
@@ -232,61 +258,80 @@ const AnalysisDashboardPage: React.FC = () => {
    * - 응답 데이터를 차트와 카드에 표시할 형식으로 가공
    */
   useEffect(() => {
-    const fetchAnalysisData = async () => {
-      if (!selectedPresentationId) return;
+  const fetchAnalysisData = async () => {
+    if (!selectedPresentationId || !selectedType) return;
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('인증 토큰이 없습니다.');
-        }
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다.');
+      }
 
-        const response = await axios.get('/spring/api/get-analysis', {
+      let response;
+      
+      // 분석 유형에 따라 다른 API 엔드포인트 호출
+      if (selectedType === 'video') {
+        // 영상 분석 데이터 조회
+        response = await axios.get('/spring/api/get-analysis', {
           params: { filename: selectedPresentationId },
           headers: { Authorization: `Bearer ${token}` },
         });
+      } else if (selectedType === 'script') {
+        // 대본 분석 데이터 조회
+        response = await axios.get('/spring/api/get-script-analysis', {
+          params: { script_id: selectedPresentationId },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        throw new Error('알 수 없는 분석 유형입니다.');
+      }
 
-        const data: AnalysisData = response.data;
-        setAnalysisData(data);
+      const data: AnalysisData = response.data;
+      setAnalysisData(data);
 
-        // 발표 속도 데이터 가공
+      if (selectedType === 'video') {
+        // 영상 분석 데이터 가공
         const pace: PaceDataPoint[] = data.speaking_speed?.segment_wpm.map((segment) => ({
           time: formatTime(segment.start),
           wpm: segment.wpm,
         })) || [];
         setPaceData(pace);
 
-        // 음량 데이터 가공
         const volume: VolumeDataPoint[] = data.volume_analysis?.segment_data.map((segment) => ({
           time: formatTime(segment.time_stamps[0]),
           db: segment.db,
         })) || [];
         setVolumeData(volume);
 
-        // 발표 길이 계산
         const maxTime = Math.max(
           ...data.speaking_speed?.segment_wpm.map((s) => s.end) || [0],
           ...data.volume_analysis?.segment_data.map((s) => s.time_stamps[1]) || [0]
         );
         setDuration(formatTime(maxTime));
 
-        // 전체 점수 계산
         const speakingScore = data.speaking_evaluation?.overall_score || 0;
         const volumeScore = data.volume_evaluation?.overall_score || 0;
         setOverallScore(Math.round((speakingScore + volumeScore) / 2));
-      } catch (err: any) {
-        console.error('분석 데이터 로드 에러:', err);
-        setError(err.response?.data?.error || '데이터를 불러오는 중 오류가 발생했습니다.');
-      } finally {
-        setLoading(false);
+      } else {
+        // 대본 분석은 차트 데이터 불필요
+        setPaceData([]);
+        setVolumeData([]);
+        setDuration('N/A');
+        setOverallScore(0);
       }
-    };
+    } catch (err: any) {
+      console.error('분석 데이터 로드 에러:', err);
+      setError(err.response?.data?.error || err.response?.data?.message || '데이터를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchAnalysisData();
-  }, [selectedPresentationId, navigate]);
+  fetchAnalysisData();
+}, [selectedPresentationId, selectedType]);
 
   /**
    * 백엔드 개발자 참고사항:
@@ -304,8 +349,12 @@ const AnalysisDashboardPage: React.FC = () => {
    * URL을 업데이트하고 분석 데이터를 로드
    */
   const handleSelectPresentation = (id: string) => {
-    setSelectedPresentationId(id);
-    navigate(`/analysis/${id}`, { replace: true });
+    const selectedItem = presentations.find((p) => p.id === id);
+    if (selectedItem) {
+      setSelectedPresentationId(id);
+      setSelectedType(selectedItem.type);
+      navigate(`/analysis/${id}`, { replace: true });
+    }
   };
 
   /**
@@ -399,7 +448,7 @@ const AnalysisDashboardPage: React.FC = () => {
               color="text.secondary"
               sx={{ mt: 3 }}
             >
-              영상 분석이 완료되었습니다! 결과를 확인해 보세요
+              {selectedType === 'video' ? '영상 분석이 완료되었습니다!' : '대본 분석이 완료되었습니다!'} 결과를 확인해 보세요
             </Typography>
           </Box>
           
@@ -428,7 +477,10 @@ const AnalysisDashboardPage: React.FC = () => {
                     업로드 페이지로 이동
                   </Button>
                 </Box>
-              ) : (
+              ) :  selectedType === 'script' ? (
+                // 대본 분석 페이지로 리다이렉트
+                <ScriptPage scriptId={selectedPresentationId ?? ''} />
+              ) :(
                 <Grid container spacing={4}>
                   {/* Left column: Summary + Tips */}
                   <Grid item xs={12} md={3}>

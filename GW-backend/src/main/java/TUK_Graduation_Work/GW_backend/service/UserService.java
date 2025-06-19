@@ -73,10 +73,10 @@ public class UserService {
                             user.setEmail(email);
                             return saveUser(user, newPassword);
                         })
-                        .switchIfEmpty(Mono.defer(() -> {
+                        .switchIfEmpty(Mono.fromCallable(() -> {
                             user.setEmail(email);
-                            return saveUser(user, newPassword);
-                        }));
+                            return user;
+                        }).flatMap(updatedUser -> saveUser(updatedUser, newPassword)));
                 } else {
                     user.setEmail(null); // 클라이언트가 빈 이메일 보낼 경우 null로 설정
                     return saveUser(user, newPassword);

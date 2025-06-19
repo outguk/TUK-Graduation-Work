@@ -10,3 +10,4 @@ MONGO_DB_URI = "mongodb+srv://junpyo:nDnw6d3SqOOIGumO@analysis-db.nppaekk.mongod
 client = AsyncIOMotorClient(MONGO_DB_URI)
 db = client["analysis_db"]  # 데이터베이스 이름
 collection = db["results"]  # 컬렉션 이름
+script_collection = db["script_analysis"]  # 스크립트 컬렉션 이름

@@ -119,9 +119,9 @@ export default function MainPage() {
       icon: HistoryIcon
     },
     {
-      title: "가이드",
-      description: "초보자를 위한 발표 영상 분석 가이드",
-      link: "/upload",
+      title: "대본 분석",
+      description: "대본 텍스트 분석을 통한 피드백",
+      link: "/analysis/script-upload",
       icon: GuideIcon
     }
   ];

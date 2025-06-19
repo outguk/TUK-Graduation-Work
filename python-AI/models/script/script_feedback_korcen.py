@@ -180,18 +180,27 @@ def evaluate_length(text: str, speech_minutes: int) -> Tuple[int, int, int, str]
 # 5. FastAPI용 래퍼 함수
 # ─────────────────────────────────────────────
 def run_script_feedback(
-    script_path: str,
-    speech_minutes: int,
+    script_path: str | None = None,  # 수정: str | None으로 변경, 기본값 None
+    script_text: str | None = None,  # 추가: 텍스트 입력 파라미터
+    speech_minutes: int = 1,
     custom_badwords_path: str | None = None,
 ) -> Dict[str, Any]:
     """
     FastAPI 등 외부에서 호출해 MongoDB에 바로 넣을 수 있는 최상위 함수.
-    :param script_path: 업로드된 대본 텍스트 파일 절대경로
+    :param script_path: 업로드된 대본 텍스트 파일 절대경로 (선택)
+    :param script_text: 직접 입력된 대본 텍스트 (선택)
     :param speech_minutes: 발표 시간(분)
     :param custom_badwords_path: 사용자 정의 비속어 txt 경로 (없으면 None)
     :return: MongoDB 저장용 dict
     """
-    text, sentences = load_script(script_path)
+    if script_path:
+        text, sentences = load_script(script_path)
+    elif script_text:
+        text = script_text.strip()
+        sentences = [s.strip() for s in re.split(r"[.!?\n]", text) if s.strip()]
+    else:
+        raise ValueError("Either script_path or script_text must be provided")
+
     custom_badwords = load_custom_badwords(custom_badwords_path) if custom_badwords_path else set()
 
     tagger = Okt()

@@ -41,6 +41,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
 
 from konlpy.tag import Okt, Kkma
 
@@ -63,7 +64,8 @@ from models.vocalization.util_functions import (
 )
 from models.script.script_feedback_korcen import run_script_feedback  # ★ 새 통합 함수
 
-from mongodb import collection
+from mongodb import collection, script_collection
+from bson import ObjectId
 
 # ─────────────────────────────────────────
 # FastAPI 기본 설정
@@ -72,10 +74,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8080"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5173", "http://localhost:8080", "http://14.36.21.67:32312", "http://14.36.21.67:32313", "http://14.36.21.67:32314", "*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "Content-Type", "Access-Control-Allow-Origin"],
+    
 )
 
 logging.basicConfig(
@@ -107,9 +110,12 @@ STAGES = [
     "결과 저장 및 정리 중"
 ]
 
-
-
-
+# ─────────────────────────────────────────
+# Pydantic 모델 정의 (신규 추가)
+# ─────────────────────────────────────────
+class ScriptRequest(BaseModel):
+    script_text: str
+    speech_minutes: int
 
 # ─────────────────────────────────────────
 # JWT 검증 유틸
@@ -363,36 +369,79 @@ async def analyze_script_endpoint(
     file: UploadFile = File(...),
     filename: str = Form(...),
     speech_minutes: int = Form(...),
-    authorization: str = Header(...),
+    user_id: int = Depends(get_current_user),
 ):
-    user_id = verify_jwt_and_get_user_id(authorization)
-
-    # 1) txt 파일 저장
+    # txt 파일 저장
     txt_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(txt_path, "wb") as f:
         f.write(await file.read())
 
-    # 2) 대본 분석 호출
+    # 대본 분석 호출
     analysis = run_script_feedback(
         script_path=txt_path,
         speech_minutes=speech_minutes,
         custom_badwords_path=os.path.join(BASE_DIR, "custom_profanities.txt"),
     )
 
-    # 3) MongoDB 업데이트 (upsert)
-    res = await collection.update_one(
-        {"user_id": user_id, "filename": filename},
-        {"$set": {"script_analysis": analysis}},
-        upsert=True,
-    )
+    # MongoDB 저장 (script_collection)
+    doc = {
+        "user_id": user_id,
+        "script_text": open(txt_path, "r", encoding="utf-8").read(),
+        "script_analysis": analysis,
+        "speech_minutes": speech_minutes,
+        "filename": filename,  # 영상 파일명과 연관성 유지
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    result = await script_collection.insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    logging.info(f"Script analysis saved: {doc['_id']}")
 
-    if res.matched_count == 0 and res.upserted_id:
-        logging.info(f"새 문서 upsert: {res.upserted_id}")
-
-    doc = await collection.find_one({"user_id": user_id, "filename": filename})
-    doc["_id"] = str(doc["_id"])
     return JSONResponse(content=doc)
 
+# ─────────────────────────────────────────
+# ③ 텍스트 입력 대본 분석 (신규 추가)
+# ─────────────────────────────────────────
+@app.post("/fastapi/api/analyze-text-script/")
+async def analyze_text_script(
+    request: ScriptRequest,
+    user_id: int = Depends(get_current_user),
+):
+    # 대본 분석 호출
+    analysis = run_script_feedback(
+        script_path=None,
+        script_text=request.script_text,
+        speech_minutes=request.speech_minutes,
+        custom_badwords_path=os.path.join(BASE_DIR, "custom_profanities.txt"),
+    )
+
+    # MongoDB 저장 (script_collection)
+    doc = {
+        "user_id": user_id,
+        "script_text": request.script_text,
+        "script_analysis": analysis,
+        "speech_minutes": request.speech_minutes,
+        "filename": f"text_script_{str(uuid.uuid4())}",  # 고유 파일명 생성
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    result = await script_collection.insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    logging.info(f"Script analysis saved: {doc['_id']}")
+
+    return JSONResponse(content=doc)
+
+# ─────────────────────────────────────────
+# ④ 대본 분석 결과 조회 (신규 추가)
+# ─────────────────────────────────────────
+@app.get("/fastapi/api/get-script-analysis/")
+async def get_script_analysis(
+    script_id: str = Query(...),
+    user_id: int = Depends(get_current_user),
+):
+    doc = await script_collection.find_one({"_id": ObjectId(script_id), "user_id": user_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Script analysis not found")
+    doc["_id"] = str(doc["_id"])
+    return doc
 
 # ─────────────────────────────────────────
 # ③ 분석 결과 조회
@@ -410,16 +459,28 @@ async def get_analysis(
 
 
 # ─────────────────────────────────────────
-# ④ 사용자별 전체 리스트
+# ⑥ 사용자별 전체 리스트 (수정: 대본 분석 포함)
 # ─────────────────────────────────────────
 @app.get("/fastapi/api/analysis-by-user/")
 async def get_analysis_by_user(user_id: int = Depends(get_current_user)):
+    # 영상 분석 결과
     cursor = collection.find({"user_id": user_id})
-    results = []
+    video_results = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
-        results.append(doc)
-    return {"analyses": results}
+        video_results.append(doc)
+    
+    # 대본 분석 결과
+    script_cursor = script_collection.find({"user_id": user_id})
+    script_results = []
+    async for doc in script_cursor:
+        doc["_id"] = str(doc["_id"])
+        script_results.append(doc)
+    
+    return {
+        "video_analyses": video_results,
+        "script_analyses": script_results
+    }
 
 
 # ─────────────────────────────────────────
@@ -434,22 +495,42 @@ async def stream_video(filename: str):
 
 
 # ─────────────────────────────────────────
-# ⑥ 대시보드 통계
+# ⑧ 대시보드 통계 (수정: 대본 분석 통계 포함)
 # ─────────────────────────────────────────
 @app.get("/fastapi/api/analysis/stats")
 async def get_analysis_stats(user_id: int = Depends(get_current_user)):
-    total = await collection.count_documents({"user_id": user_id})
-    recent = (
+    # 영상 분석 통계
+    video_total = await collection.count_documents({"user_id": user_id})
+    video_recent = (
         await collection.find({"user_id": user_id})
         .sort("timestamp", -1)
         .limit(5)
         .to_list(None)
     )
-    recent_sanitized = [
+    video_recent_sanitized = [
         {"date": doc.get("timestamp", ""), "description": doc.get("filename", "")}
-        for doc in recent
+        for doc in video_recent
     ]
-    return {"totalPresentations": total, "recentActivity": recent_sanitized}
+    
+    # 대본 분석 통계
+    script_total = await script_collection.count_documents({"user_id": user_id})
+    script_recent = (
+        await script_collection.find({"user_id": user_id})
+        .sort("timestamp", -1)
+        .limit(5)
+        .to_list(None)
+    )
+    script_recent_sanitized = [
+        {"date": doc.get("timestamp", ""), "description": doc.get("filename", "")}
+        for doc in script_recent
+    ]
+    
+    return {
+        "totalVideoPresentations": video_total,
+        "recentVideoActivity": video_recent_sanitized,
+        "totalScriptAnalyses": script_total,
+        "recentScriptActivity": script_recent_sanitized
+    }
 
 
 # ─────────────────────────────────────────
