@@ -304,6 +304,17 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
     return BEHAVIOR_CATEGORIES[category] || "#888888";
   };
 
+  // 피드백 텍스트 색상을 결정하는 함수 추가 (파란색 계열)
+  const getFeedbackTextColor = (segment: NonverbalSegment | null): string => {
+    if (!segment) return '#1565c0'; // 기본값 - 진한 파랑
+    
+    if (segment.is_normal) {
+      return '#1565c0'; // 정상 - 진한 파랑
+    } else {
+      return '#1565c0'; // 개선 필요 - 진한 파랑 (동일하게 파랑 유지)
+    }
+  };
+
   const handleNavigateBack = () => {
     if (presentationId) {
       navigate(`/analysis/${presentationId}`);
@@ -816,7 +827,7 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                       fontWeight={600}
                       sx={{ mb: 3 }}
                     >
-                      선택 구간 피드백
+                      선택 구간 분석
                     </Typography>
 
                     {selectedSegmentIndex !== null && analysisData ? (
@@ -907,19 +918,29 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
                               fontWeight={600}
                               gutterBottom
                             >
-                              피드백
+                              상세 피드백
                             </Typography>
                             <Paper
                               elevation={0}
                               sx={{
                                 p: 3,
                                 borderRadius: 3,
-                                bgcolor: "#fff",
-                                border: "1px solid #eaeaea",
+                                bgcolor: '#e3f2fd', // 연한 파랑 배경
+                                border: '1px solid #bbdefb', // 연한 파랑 테두리
                                 boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
                               }}
                             >
-                              <Typography variant="body1">
+                              <Typography 
+                                variant="body1"
+                                sx={{
+                                  color: getFeedbackTextColor(
+                                    selectedSegmentIndex !== null && analysisData 
+                                      ? analysisData[selectedSegmentIndex] 
+                                      : null
+                                  ),
+                                  transition: 'color 0.3s ease'
+                                }}
+                              >
                                 {selectedFeedback}
                               </Typography>
                             </Paper>
@@ -978,24 +999,6 @@ const NonverbalEvaluationDetailPage: React.FC = () => {
             }}
           >
             대시보드로 돌아가기
-          </Button>
-
-          <Button
-            variant="outlined"
-            onClick={() => navigate("/analysis/script")}
-            sx={{
-              borderRadius: 8,
-              px: 3,
-              py: 1,
-              borderColor: "#000",
-              color: "#000",
-              "&:hover": {
-                borderColor: "#333",
-                backgroundColor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            대본 분석 보기
           </Button>
         </Box>
 

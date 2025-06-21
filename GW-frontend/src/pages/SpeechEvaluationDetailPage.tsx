@@ -102,6 +102,41 @@ const SpeechEvaluationDetailPage: React.FC = () => {
   const [showContent, setShowContent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
 
+  const DETAILED_FEEDBACK: { [key: string]: { [key: string]: string[] } } = {
+    speed: {
+      fast: [
+        "속도가 너무 빠릅니다. 중요한 부분에서는 의식적으로 천천히 말해보세요.",
+        "문장 사이에 충분한 쉼을 두어 청중이 내용을 소화할 시간을 주세요.",
+        "빠른 말은 불안해 보이거나 신뢰도를 떨어뜨릴 수 있습니다."
+      ],
+      slow: [
+        "속도가 너무 느립니다. 발표가 지루하게 느껴질 수 있습니다.",
+        "조금 더 자신감 있고 활기찬 톤으로 말하며 속도를 높여보세요.",
+        "전체적인 흐름을 생각하며 리듬감 있게 말하는 연습이 필요합니다."
+      ],
+      normal: [
+        "아주 좋습니다! 현재 속도를 유지하며 안정적으로 발표를 이끌어가세요.",
+        "중요한 부분에서 의도적으로 속도를 늦추면 메시지를 효과적으로 강조할 수 있습니다."
+      ]
+    },
+    volume: {
+      loud: [
+        "목소리가 너무 큽니다. 듣는 사람이 불편할 수 있습니다.",
+        "공격적이거나 강압적인 인상을 줄 수 있으니 편안한 음량을 유지하세요.",
+        "마이크를 사용한다면 거리를 조절하여 적정 음량을 맞추는 것이 좋습니다."
+      ],
+      quiet: [
+        "목소리가 너무 작습니다. 청중에게 내용이 잘 전달되지 않을 수 있습니다.",
+        "자신감이 부족해 보일 수 있으니, 복식 호흡으로 더 크고 선명한 소리를 내보세요.",
+        "발표 시작 전, 목소리를 가다듬고 적정 음량을 테스트하는 습관을 들이세요."
+      ],
+      normal: [
+        "훌륭한 음량입니다! 이대로 명확하고 안정적인 목소리를 유지해주세요.",
+        "중요한 내용을 강조할 때만 의도적으로 음량을 살짝 높여보세요."
+      ]
+    }
+  };
+
   useEffect(() => {
     if (!type) return;
     if (type !== 'speed' && type !== 'volume') {
@@ -256,12 +291,12 @@ const SpeechEvaluationDetailPage: React.FC = () => {
 // 정상 범위를 60-70dB로 설정하고 색상 체계 추가
 
 // 정상 범위와 심각한 벗어남의 기준을 정의
-const SPEED_NORMAL_MIN = 100;
-const SPEED_NORMAL_MAX = 140;
+const SPEED_NORMAL_MIN = 120;
+const SPEED_NORMAL_MAX = 150;
 const SPEED_SEVERE_DEVIATION = 30; // 정상 범위에서 30 WPM 이상 벗어나면 심각하게 간주
 
 const VOLUME_NORMAL_MIN = 60;
-const VOLUME_NORMAL_MAX = 70;
+const VOLUME_NORMAL_MAX = 75;
 const VOLUME_SEVERE_DEVIATION = 15; // 정상 범위에서 15 dB 이상 벗어나면 심각하게 간주
 
 // 음량에 따른 색상을 결정하는 함수
@@ -298,6 +333,44 @@ const getSpeedColor = (wpm: number | undefined | null): string => {
   
   // 약간 벗어난 경우
   return '#ff8c00'; // 약간 벗어남 - 주황색
+};
+
+const getFeedbackBackgroundColor = (value: number | undefined | null, type: 'speed' | 'volume'): string => {
+  if (value === undefined || value === null) return '#fff';
+
+  const ranges = {
+    speed: { normal_min: SPEED_NORMAL_MIN, normal_max: SPEED_NORMAL_MAX, severe: SPEED_SEVERE_DEVIATION },
+    volume: { normal_min: VOLUME_NORMAL_MIN, normal_max: VOLUME_NORMAL_MAX, severe: VOLUME_SEVERE_DEVIATION }
+  };
+
+  const { normal_min, normal_max, severe } = ranges[type];
+
+  if (value >= normal_min && value <= normal_max) {
+    return '#e8f5e9'; // Normal
+  }
+  if (value < normal_min - severe || value > normal_max + severe) {
+    return '#ffebee'; // Danger
+  }
+  return '#fff3e0'; // Warning
+};
+
+const getFeedbackTextColor = (value: number | undefined | null, type: 'speed' | 'volume'): string => {
+  if (value === undefined || value === null) return '#666';
+
+  const ranges = {
+    speed: { normal_min: SPEED_NORMAL_MIN, normal_max: SPEED_NORMAL_MAX, severe: SPEED_SEVERE_DEVIATION },
+    volume: { normal_min: VOLUME_NORMAL_MIN, normal_max: VOLUME_NORMAL_MAX, severe: VOLUME_SEVERE_DEVIATION }
+  };
+
+  const { normal_min, normal_max, severe } = ranges[type];
+
+  if (value >= normal_min && value <= normal_max) {
+    return '#2e7d32'; // Normal - 진한 초록색
+  }
+  if (value < normal_min - severe || value > normal_max + severe) {
+    return '#c62828'; // Danger - 진한 빨간색
+  }
+  return '#ef6c00'; // Warning - 진한 주황색
 };
 
 const getReferenceLines = () => {
@@ -530,7 +603,7 @@ const getReferenceLines = () => {
                   
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
                     <Typography variant="caption" color="text.secondary">
-                      {type === 'speed' ? '권장 말하기 속도: 120-150 WPM' : '권장 음량 범위: 65-70 dB'}
+                      {type === 'speed' ? '권장 말하기 속도: 120-150 WPM' : '권장 음량 범위: 65-75 dB'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       그래프의 구간을 클릭하여 상세 정보 확인
@@ -570,7 +643,7 @@ const getReferenceLines = () => {
                       fontWeight={600}
                       sx={{ mb: 3 }}
                     >
-                      상세 피드백
+                      피드백
                     </Typography>
                     
                     <Box 
@@ -586,8 +659,8 @@ const getReferenceLines = () => {
                       <InfoIcon sx={{ mr: 2, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
                         {type === 'speed' 
-                          ? '말하기 속도는 효과적인 메시지 전달을 위해 중요합니다. 110-130 WPM이 일반적으로 권장됩니다.' 
-                          : '음량은 청중의 주의를 끌고 메시지의 중요성을 강조하는 데 중요합니다. 60-70 dB이 일반적으로 권장됩니다.'}
+                          ? '말하기 속도는 효과적인 메시지 전달을 위해 중요합니다. 120-150 WPM이 일반적으로 권장됩니다.' 
+                          : '음량은 청중의 주의를 끌고 메시지의 중요성을 강조하는 데 중요합니다. 60-75 dB이 일반적으로 권장됩니다.'}
                       </Typography>
                     </Box>
                     
@@ -608,13 +681,26 @@ const getReferenceLines = () => {
                           sx={{ 
                             p: 3, 
                             borderRadius: 3,
-                            bgcolor: '#fff',
+                            bgcolor: getFeedbackBackgroundColor(
+                              chartData.find(d => d.timeRange === selectedTimeRange)?.[type === 'speed' ? 'wpm' : 'db'],
+                              type as 'speed' | 'volume'
+                            ),
                             border: '1px solid #eaeaea',
                             boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                            mb: 3
+                            mb: 3,
+                            transition: 'background-color 0.3s ease'
                           }}
                         >
-                          <Typography variant="body1">
+                          <Typography 
+                            variant="body1"
+                            sx={{
+                              color: getFeedbackTextColor(
+                                chartData.find(d => d.timeRange === selectedTimeRange)?.[type === 'speed' ? 'wpm' : 'db'],
+                                type as 'speed' | 'volume'
+                              ),
+                              transition: 'color 0.3s ease'
+                            }}
+                          >
                             {selectedFeedback}
                           </Typography>
                         </Paper>
@@ -623,54 +709,54 @@ const getReferenceLines = () => {
                     
                     <Box sx={{ mt: 'auto' }}>
                       <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                        개선 팁
+                        상세 피드백
                       </Typography>
                       
                       <Box 
                         sx={{ 
                           p: 3, 
                           borderRadius: 3, 
-                          bgcolor: '#f8f8f8',
-                          border: '1px solid #eaeaea',
+                          bgcolor: '#e3f2fd', // 연한 파랑 배경
+                          border: '1px solid #bbdefb', // 연한 파랑 테두리
                         }}
                       >
-                        {type === 'speed' ? (
-                          <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
-                            <li>
-                              <Typography variant="body2" sx={{ mb: 1 }}>
-                                중요한 내용에서는 속도를 줄여 강조하세요.
+                        <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
+                          {((): string[] => {
+                            const dataPoint = chartData.find(d => d.timeRange === selectedTimeRange);
+                            if (!dataPoint || !type) return ["구간을 선택하여 상세 피드백을 확인하세요."];
+                            
+                            const value = type === 'speed' ? dataPoint.wpm : dataPoint.db;
+                            if (value === undefined || value === null) return ["데이터가 없습니다."];
+
+                            const ranges = {
+                              speed: { fast: SPEED_NORMAL_MAX, slow: SPEED_NORMAL_MIN },
+                              volume: { loud: VOLUME_NORMAL_MAX, quiet: VOLUME_NORMAL_MIN }
+                            };
+
+                            const feedbackType = DETAILED_FEEDBACK[type];
+                            if (type === 'speed') {
+                              if (value > ranges.speed.fast) return feedbackType.fast;
+                              if (value < ranges.speed.slow) return feedbackType.slow;
+                              return feedbackType.normal;
+                            } else { // volume
+                              if (value > ranges.volume.loud) return feedbackType.loud;
+                              if (value < ranges.volume.quiet) return feedbackType.quiet;
+                              return feedbackType.normal;
+                            }
+                          })().map((tip, index) => (
+                            <li key={index}>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  mb: 1,
+                                  color: '#1565c0' // 진한 파랑 텍스트
+                                }}
+                              >
+                                {tip}
                               </Typography>
                             </li>
-                            <li>
-                              <Typography variant="body2" sx={{ mb: 1 }}>
-                                문장 사이에 잠시 멈추는 것이 청중이 내용을 이해하는 데 도움이 됩니다.
-                              </Typography>
-                            </li>
-                            <li>
-                              <Typography variant="body2">
-                                연습 중에 말하기 속도를 체크하며 일정한 속도를 유지하는 훈련을 하세요.
-                              </Typography>
-                            </li>
-                          </ul>
-                        ) : (
-                          <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
-                            <li>
-                              <Typography variant="body2" sx={{ mb: 1 }}>
-                                중요한 내용에서는 음량을 약간 높여 강조할 수 있습니다.
-                              </Typography>
-                            </li>
-                            <li>
-                              <Typography variant="body2" sx={{ mb: 1 }}>
-                                일관된 음량을 유지하는 것이 전문성을 높이는 데 도움이 됩니다.
-                              </Typography>
-                            </li>
-                            <li>
-                              <Typography variant="body2">
-                                너무 큰 소리나 작은 소리는 청중의 집중력을 떨어뜨릴 수 있습니다.
-                              </Typography>
-                            </li>
-                          </ul>
-                        )}
+                          ))}
+                        </ul>
                       </Box>
                     </Box>
                   </CardContent>

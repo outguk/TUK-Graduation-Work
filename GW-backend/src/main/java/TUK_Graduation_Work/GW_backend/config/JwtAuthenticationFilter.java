@@ -13,7 +13,6 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import org.springframework.security.core.context.SecurityContextImpl;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 
 @Component
 public class JwtAuthenticationFilter implements WebFilter {

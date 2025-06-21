@@ -44,7 +44,7 @@ def evaluate_speaking_speed(metrics: dict) -> float:
     """
 
      # 이상적인 말하기 속도 범위 설정 (분당 단어 수)
-    ideal_min = 130
+    ideal_min = 120
     ideal_max = 150
 
     # 각 구간별 평가 결과를 저장할 리스트를 초기화
@@ -134,7 +134,7 @@ def evaluate_volume(volume_metrics: dict) -> float:
     """
     # 이상적인 음량 범위 설정
     ideal_min = 60
-    ideal_max = 70
+    ideal_max = 75
     
     # 각 구간별 평가 결과를 저장할 리스트 초기화
     segment_evaluations = []

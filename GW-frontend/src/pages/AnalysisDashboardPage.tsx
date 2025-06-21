@@ -25,7 +25,6 @@ import {
   Paper,
   Button,
   Fade,
-  Divider,
   CircularProgress,
   Alert,
 } from '@mui/material';
@@ -37,17 +36,18 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
+  ReferenceArea,
 } from 'recharts';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  TextSnippet as TextSnippetIcon,
   GraphicEq as GraphicEqIcon,
   PersonOutline as PersonOutlineIcon,
 } from '@mui/icons-material';
+import {PlayCircleOutline} from "@mui/icons-material";
 import axios from 'axios';
 import PresentationSidebar from '../components/PresentationSidebar';
 import ScriptPage from './ScriptPage'; // ScriptPage 컴포넌트 import
+import guideImage from '../assets/guide.png';
 
 
 /**
@@ -125,16 +125,20 @@ const AnalysisDashboardPage: React.FC = () => {
   const [paceData, setPaceData] = useState<PaceDataPoint[]>([]);
   const [volumeData, setVolumeData] = useState<VolumeDataPoint[]>([]);
   const [duration, setDuration] = useState("0:00");
-  const [overallScore, setOverallScore] = useState(0);
+  // const [overallScore, setOverallScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
 
 
   // 정상 범위와 심각한 벗어남의 기준
-  const SPEED_NORMAL_MIN = 100;
-  const SPEED_NORMAL_MAX = 140;
+  const SPEED_NORMAL_MIN = 110;
+  const SPEED_NORMAL_MAX = 150;
   const SPEED_SEVERE_DEVIATION = 30;
+
+  const VOLUME_NORMAL_MIN = 60;
+  const VOLUME_NORMAL_MAX = 75;
+  const VOLUME_SEVERE_DEVIATION = 15;
 
   /**
    * 백엔드 개발자 참고사항:
@@ -312,15 +316,16 @@ const AnalysisDashboardPage: React.FC = () => {
         );
         setDuration(formatTime(maxTime));
 
-        const speakingScore = data.speaking_evaluation?.overall_score || 0;
-        const volumeScore = data.volume_evaluation?.overall_score || 0;
-        setOverallScore(Math.round((speakingScore + volumeScore) / 2));
+        // 점수 측정 부분분
+        // const speakingScore = data.speaking_evaluation?.overall_score || 0;
+        // const volumeScore = data.volume_evaluation?.overall_score || 0;
+        // setOverallScore(Math.round((speakingScore + volumeScore) / 2));
       } else {
         // 대본 분석은 차트 데이터 불필요
         setPaceData([]);
         setVolumeData([]);
         setDuration('N/A');
-        setOverallScore(0);
+        // setOverallScore(0);
       }
     } catch (err: any) {
       console.error('분석 데이터 로드 에러:', err);
@@ -341,6 +346,20 @@ const AnalysisDashboardPage: React.FC = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getVolumeColor = (db: number | undefined | null): string => {
+    if (db === undefined || db === null) return '#888888'; // 값이 없는 경우
+    
+    if (db >= VOLUME_NORMAL_MIN && db <= VOLUME_NORMAL_MAX) {
+      return '#4caf50'; // 정상 - 초록색
+    }
+    
+    if (db < VOLUME_NORMAL_MIN - VOLUME_SEVERE_DEVIATION || db > VOLUME_NORMAL_MAX + VOLUME_SEVERE_DEVIATION) {
+      return '#e53935'; // 심각한 벗어남 - 빨간색
+    }
+    
+    return '#ff8c00'; // 약간 벗어남 - 주황색
   };
 
   /**
@@ -370,17 +389,6 @@ const AnalysisDashboardPage: React.FC = () => {
     navigate(`/analysis/volume/${selectedPresentationId}`);
   };
 
-  const handleNavigateToScript = () => {
-    const hasScript = Boolean(analysisData?.script_analysis);
-
-    // 파일명(id) 바로 뒤에 /script 또는 /script-display 를 붙여준다
-    const base = `/analysis/${selectedPresentationId}`;
-
-    navigate(
-      hasScript ? `${base}/script-display`
-                : `${base}/script`
-    );
-  };
 
   const handleNavigateToNonverbal = () => {
     navigate(`/analysis/nonverbal/${selectedPresentationId}`);
@@ -489,7 +497,7 @@ const AnalysisDashboardPage: React.FC = () => {
                       elevation={0}
                       sx={{ 
                         mb: 4, 
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         height: '220px',
                         position: 'relative',
@@ -501,45 +509,26 @@ const AnalysisDashboardPage: React.FC = () => {
                           left: 0,
                           width: '100%',
                           height: '4px',
-                          background: '#000'
+                          background: '#000',
                         }
                       }}
                     >
-                      <CardContent sx={{ p: 3 }}>
+                      <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <Typography 
                           variant="h6" 
                           component="h2"
                           fontWeight={600}
                           sx={{ mb: 3 }}
                         >
-                          요약 정보
+                          영상 정보
                         </Typography>
                         
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, mt: 4 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ width: '50%' }}>
                             총 영상 시간
                           </Typography>
-                          <Typography variant="h5" fontWeight={700} sx={{ width: '50%', textAlign: 'right' }}>
+                          <Typography variant="h4" fontWeight={700} sx={{ width: '50%', textAlign: 'right' }}>
                             {duration}
-                          </Typography>
-                        </Box>
-                        
-                        <Divider sx={{ my: 2 }} />
-                        
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ width: '50%' }}>
-                            Overall Score
-                          </Typography>
-                          <Typography 
-                            variant="h4" 
-                            fontWeight={700} 
-                            sx={{ 
-                              width: '50%', 
-                              textAlign: 'right',
-                              color: '#000'
-                            }}
-                          >
-                            {overallScore}
                           </Typography>
                         </Box>
                       </CardContent>
@@ -549,7 +538,7 @@ const AnalysisDashboardPage: React.FC = () => {
                     <Card 
                       elevation={0}
                       sx={{ 
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         height: 'calc(100% - 220px - 32px)',
                         minHeight: '200px',
@@ -564,16 +553,16 @@ const AnalysisDashboardPage: React.FC = () => {
                           left: 0,
                           width: '100%',
                           height: '4px',
-                          background: '#000'
+                          background: '#000',
                         }
                       }}
                     >
-                      <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                      <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <Typography 
                           variant="h6" 
                           component="h2"
                           fontWeight={600}
-                          sx={{ mb: 3 }}
+                          sx={{ mb: 3, width: '100%' }}
                         >
                           발표 팁
                         </Typography>
@@ -614,13 +603,16 @@ const AnalysisDashboardPage: React.FC = () => {
                       sx={{ 
                         p: 3, 
                         mb: 4, 
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
                           boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)'
+                          transform: 'translateY(-4px)',
+                          '&::before': {
+                            opacity: 1,
+                          },
                         },
                         height: '48%',
                         position: 'relative',
@@ -632,16 +624,24 @@ const AnalysisDashboardPage: React.FC = () => {
                           left: 0,
                           width: '100%',
                           height: '4px',
-                          background: '#000'
-                        }
+                          background: '#000',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease-in-out',
+                        },
                       }}
                       onClick={handleNavigateToSpeed}
                       role="button"
                       tabIndex={0}
                       aria-label="Speaking pace analysis details"
                     >
-                      <Typography variant="h6" component="h2" fontWeight={600}>
-                        말하기 속도 (분당 단어 수)
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" component="h2" fontWeight={600}>
+                          말하기 속도 (WPM)
+                        </Typography>
+                        <PlayCircleOutline />
+                      </Box>
+                      <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{mt: 2 }}>
+                        적정 말하기 속도 범위: {SPEED_NORMAL_MIN}~{SPEED_NORMAL_MAX} WPM
                       </Typography>
                       
                       <Box
@@ -683,15 +683,6 @@ const AnalysisDashboardPage: React.FC = () => {
                               strokeWidth="12"
                               strokeLinecap="butt"
                             />
-                            <text x="0" y="20" fontSize="4" fill="#666" textAnchor="middle">
-                              0
-                            </text>
-                            <text x="50" y="55" fontSize="4" fill="#666" textAnchor="middle">
-                              100
-                            </text>
-                            <text x="100" y="20" fontSize="4" fill="#666" textAnchor="middle">
-                              200
-                            </text>
                           </Box>
 
                           {/* Active gauge */}
@@ -792,7 +783,7 @@ const AnalysisDashboardPage: React.FC = () => {
                           textAlign: 'center',
                           fontWeight: 500,
                           mb: 4,
-                          mt: 2,
+                          mt: 3,
                           fontSize: '1rem'
                         }}
                       >
@@ -810,13 +801,16 @@ const AnalysisDashboardPage: React.FC = () => {
                       elevation={0}
                       sx={{ 
                         p: 3, 
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
                           boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)'
+                          transform: 'translateY(-4px)',
+                          '&::before': {
+                            opacity: 1,
+                          },
                         },
                         height: '48%',
                         position: 'relative',
@@ -828,8 +822,10 @@ const AnalysisDashboardPage: React.FC = () => {
                           left: 0,
                           width: '100%',
                           height: '4px',
-                          background: '#000'
-                        }
+                          background: '#000',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease-in-out',
+                        },
                       }}
                       onClick={handleNavigateToVolume}
                       role="button"
@@ -843,7 +839,7 @@ const AnalysisDashboardPage: React.FC = () => {
                         <GraphicEqIcon />
                       </Box>
                       
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{ mb: 3 }}>
                         해당 발표 평균 음량: {volumeData.length 
                           ? (volumeData.reduce((sum, item) => sum + item.db, 0) / volumeData.length).toFixed(1) 
                           : "0"} dB (적정 음량 범위: 60-75 dB)
@@ -856,7 +852,6 @@ const AnalysisDashboardPage: React.FC = () => {
                             <XAxis dataKey="time" />
                             <YAxis domain={[30, 90]} />
                             <Tooltip 
-                              // formatter={(db) => [`${db} dB`, '음량']}
                               contentStyle={{ 
                                 backgroundColor: '#fff', 
                                 borderRadius: '8px',
@@ -864,14 +859,33 @@ const AnalysisDashboardPage: React.FC = () => {
                                 border: 'none' 
                               }} 
                             />
-                            <ReferenceLine y={60} stroke="#999" strokeDasharray="3 3" />
-                            <ReferenceLine y={70} stroke="#999" strokeDasharray="3 3" />
+                            <ReferenceArea y1={VOLUME_NORMAL_MIN} y2={VOLUME_NORMAL_MAX} fill="#e6f4ea" fillOpacity={0.5} />
                             <Line 
                               type="monotone" 
                               dataKey="db" 
                               stroke="#000" 
-                              strokeWidth={3} 
-                              dot={{ r: 4 }}
+                              strokeWidth={2}
+                              dot={(props) => {
+                                const { cx, cy, payload } = props;
+                                const db = payload.db;
+                                
+                                if (db === undefined || db === null) {
+                                  return <circle cx={cx} cy={cy} r={0} fill="none" />;
+                                }
+                                
+                                const fillColor = getVolumeColor(db);
+                                
+                                return (
+                                  <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={4}
+                                    fill={fillColor}
+                                    stroke="#FFF"
+                                    strokeWidth={1}
+                                  />
+                                );
+                              }}
                               activeDot={{ r: 6, strokeWidth: 1, stroke: '#FFF' }}
                             />
                           </LineChart>
@@ -882,114 +896,23 @@ const AnalysisDashboardPage: React.FC = () => {
                   
                   {/* Right column: Detail links */}
                   <Grid item xs={12} md={3}>
-                    {/* Script analysis card */}
-                    <Card 
-                      elevation={0}
-                      sx={{ 
-                        mb: 4, 
-                        borderRadius: 3,
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        height: '48%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)'
-                        },
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '4px',
-                          background: '#000'
-                        }
-                      }}
-                      onClick={handleNavigateToScript}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Script analysis details"
-                    >
-                      <CardContent sx={{ p: 4, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Box 
-                          sx={{ 
-                            mb: 3,
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '80px',
-                            height: '80px',
-                            borderRadius: '50%',
-                            background: 'rgba(0, 0, 0, 0.05)',
-                            mx: 'auto',
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          <TextSnippetIcon sx={{ fontSize: 40, color: '#000' }} />
-                        </Box>
-                        
-                        <Typography 
-                          variant="h5" 
-                          component="h2" 
-                          align="center"
-                          fontWeight={600}
-                          sx={{ mb: 2 }}
-                        >
-                          대본 분석 결과
-                        </Typography>
-                        
-                        <Typography 
-                          variant="body1" 
-                          align="center"
-                          color="text.secondary"
-                          sx={{ mb: 3 }}
-                        >
-                          발표 대본과 문장에 대한 분석을 확인하세요.
-                        </Typography>
-                        
-                        <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
-                          <Button 
-                            variant="outlined" 
-                            color="primary"
-                            size="large"
-                            sx={{ 
-                              borderRadius: 8,
-                              px: 3,
-                              py: 1,
-                              borderColor: '#000',
-                              color: '#000',
-                              '&:hover': {
-                                borderColor: '#333',
-                                backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                              }
-                            }}
-                          >
-                            {analysisData?.script_analysis ? '세부 결과 보기' : '대본 업로드'}
-
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                    
                     {/* Nonverbal analysis card */}
                     <Card 
                       elevation={0}
                       sx={{ 
-                        borderRadius: 3,
+                        borderRadius: 2,
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        height: '48%',
+                        height: '100%',
                         display: 'flex',
                         flexDirection: 'column',
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
                           boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)'
+                          transform: 'translateY(-4px)',
+                          '&::before': {
+                            opacity: 1,
+                          },
                         },
                         position: 'relative',
                         overflow: 'hidden',
@@ -1000,8 +923,10 @@ const AnalysisDashboardPage: React.FC = () => {
                           left: 0,
                           width: '100%',
                           height: '4px',
-                          background: '#000'
-                        }
+                          background: '#000',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease-in-out',
+                        },
                       }}
                       onClick={handleNavigateToNonverbal}
                       role="button"
@@ -1045,6 +970,19 @@ const AnalysisDashboardPage: React.FC = () => {
                           자세, 머리동작, 제스처 및 기타 비언어적 요소에 대한 분석을 확인하세요.
                         </Typography>
                         
+                        <Box
+                          sx={{
+                            flexGrow: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            my: 2,
+                            width: '100%',
+                          }}
+                        >
+                          <img src={guideImage} alt="Analysis Guide" style={{ maxWidth: '100%', height: 'auto', maxHeight: '250px', objectFit: 'contain' }} />
+                        </Box>
+
                         <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center' }}>
                           <Button 
                             variant="outlined" 
