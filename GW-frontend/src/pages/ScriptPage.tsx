@@ -19,6 +19,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 interface ScriptAnalysis {
   length: number;
@@ -47,12 +48,6 @@ interface ScriptData {
   timestamp: string;
 }
 
-interface HighlightInfo {
-  indices: Set<number>;
-  color: string;
-  type: string;
-}
-
 interface ScriptPageProps {
   scriptId: string;
 }
@@ -76,15 +71,18 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeHighlightTypes, setActiveHighlightTypes] = useState<Set<string>>(new Set());
-  const [lastClickedType, setLastClickedType] = useState<string | null>(null);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchAnalysis = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('로그인이 필요합니다');
-        setLoading(false);
+        if (isMounted) {
+          setError('로그인이 필요합니다');
+          setLoading(false);
+        }
         return;
       }
 
@@ -96,6 +94,8 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
           headers: { Authorization: `Bearer ${token}` },
         });
         
+        if (!isMounted) return; // 컴포넌트가 언마운트된 경우 처리 중단
+        
         console.log('대본 분석 응답:', response.data);
         
         if (response.data && response.data.script_analysis) {
@@ -105,6 +105,8 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
           setError('분석 결과가 없습니다');
         }
       } catch (error: any) {
+        if (!isMounted) return; // 컴포넌트가 언마운트된 경우 처리 중단
+        
         console.error('대본 분석 조회 실패:', error);
         if (error.response) {
           setError(`분석 결과 조회 실패: ${error.response.data.message || error.response.data.error || error.message}`);
@@ -112,13 +114,19 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
           setError('분석 결과 조회 실패: ' + error.message);
         }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     if (scriptId) {
       fetchAnalysis();
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [scriptId]);
 
   const handleAnalysisTypeClick = (type: string) => {
@@ -131,75 +139,72 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
       }
       return newTypes;
     });
-    setLastClickedType(type);
   };
 
-  const highlightData = useMemo<HighlightInfo[]>(() => {
+  const highlightMap = useMemo<Record<string, Set<number>>>(() => {
     if (!scriptData || activeHighlightTypes.size === 0) {
-      return [];
+      return {};
     }
 
     const analysisData = scriptData.script_analysis;
-    const highlights: HighlightInfo[] = [];
-    const uniqueActiveTypes = Array.from(activeHighlightTypes);
-    let typesToCheck: string[];
-
-    if (lastClickedType && activeHighlightTypes.has(lastClickedType)) {
-      typesToCheck = [
-        lastClickedType,
-        ...uniqueActiveTypes.filter(t => t !== lastClickedType),
-      ];
-    } else {
-      typesToCheck = uniqueActiveTypes;
-    }
+    const highlightMap: Record<string, Set<number>> = {};
     
-    typesToCheck.forEach(type => {
+    // 문장 개수 계산 (백엔드와 동일하게 \r 제거 후 분할)
+    const totalSentences = scriptData.script_text
+      .replace(/\r/g, '')
+      .split(/[.!?\n]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0).length;
+    
+    activeHighlightTypes.forEach(type => {
+      let examples: [number, string][] = [];
+      
       switch (type) {
         case 'uncertainty':
-          highlights.push({
-            type: 'uncertainty',
-            indices: new Set(analysisData.uncertainty_examples.map(ex => ex[0])),
-            color: HIGHLIGHT_COLORS.uncertainty
-          });
+          examples = analysisData.uncertainty_examples;
           break;
         case 'non_honorific':
-          highlights.push({
-            type: 'non_honorific',
-            indices: new Set(analysisData.non_honorific_examples.map(ex => ex[0])),
-            color: HIGHLIGHT_COLORS.non_honorific
-          });
+          examples = analysisData.non_honorific_examples;
           break;
         case 'subject_verb':
-          highlights.push({
-            type: 'subject_verb',
-            indices: new Set(analysisData.subject_verb_examples.map(ex => ex[0])),
-            color: HIGHLIGHT_COLORS.subject_verb
-          });
+          examples = analysisData.subject_verb_examples;
           break;
         case 'profanity':
-          highlights.push({
-            type: 'profanity',
-            indices: new Set(analysisData.profanity_examples.map(ex => ex[0])),
-            color: HIGHLIGHT_COLORS.profanity
-          });
+          examples = analysisData.profanity_examples;
           break;
       }
+      // 인덱스 번호만 추출 (1부터 시작하는 인덱스를 0부터 시작하는 인덱스로 변환)
+      // 범위 검증 추가: 0 <= idx-1 < totalSentences
+      highlightMap[type] = new Set(
+        examples
+          .map(([idx, _]) => idx - 1)
+          .filter(adjustedIdx => adjustedIdx >= 0 && adjustedIdx < totalSentences)
+      );
+      console.log(`${type} 하이라이트할 문장 인덱스들:`, Array.from(highlightMap[type]));
     });
-    return highlights;
-  }, [scriptData, activeHighlightTypes, lastClickedType]);
+    
+    return highlightMap;
+  }, [scriptData, activeHighlightTypes]);
 
   const renderHighlightedScript = () => {
     if (!scriptData) return null;
 
-    const sentences = scriptData.script_text.split(/(?<=[.?!])\s+/);
+    // Python과 동일한 방식으로 문장 분할 (정규식 패턴도 동일하게, \r 제거)
+    const sentences = scriptData.script_text
+      .replace(/\r/g, '')
+      .split(/[.!?\n]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
     let restOfText = scriptData.script_text;
     const renderedElements: (string | JSX.Element)[] = [];
 
-    sentences.forEach((sentence, index) => {
-      const sentenceNumber = index + 1;
+    sentences.forEach((sentence, idx) => {
+      // 문장이 원본 텍스트에 존재하는지 확인
       const originalIndex = restOfText.indexOf(sentence);
       
       if (originalIndex === -1) {
+        // 문장을 찾을 수 없는 경우 (드문 경우지만 안전장치)
         if(restOfText.length > 0){
           renderedElements.push(restOfText);
           restOfText = "";
@@ -212,16 +217,21 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
         renderedElements.push(precedingText);
       }
 
+      // 인덱스 기반 하이라이트 적용
       let backgroundColor = 'transparent';
-      const matchingHighlight = highlightData.find(highlight => highlight.indices.has(sentenceNumber));
-      if (matchingHighlight) {
-        backgroundColor = matchingHighlight.color;
+      
+      for (const [type, indexSet] of Object.entries(highlightMap)) {
+        if (indexSet.has(idx)) {
+          backgroundColor = HIGHLIGHT_COLORS[type] || 'transparent';
+          console.log(`하이라이트 적용: ${type} - 인덱스 ${idx}`);
+          break;
+        }
       }
 
       renderedElements.push(
         <Box
           component="span"
-          key={index}
+          key={idx}
           sx={{
             backgroundColor,
             transition: 'background-color 0.3s',
@@ -418,9 +428,34 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
               </List>
             ) : (
               <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color="text.secondary">
-                  검토된 문제점이 없습니다.
-              </Typography>
+                <Alert
+                  severity="success"
+                  icon={<CheckCircleOutlineIcon />}
+                  sx={{
+                    background: 'linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%)',
+                    color: '#2e7d32',
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem',
+                    borderRadius: 3,
+                    px: 3,
+                    py: 2,
+                    border: '2px solid #4caf50',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)',
+                    '& .MuiAlert-icon': {
+                      color: '#4caf50',
+                      fontSize: '2rem'
+                    }
+                  }}
+                >
+                  모두 정상입니다! 🎉
+                </Alert>
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary" 
+                  sx={{ mt: 2, fontStyle: 'italic' }}
+                >
+                  대본에 검토가 필요한 문제점이 발견되지 않았습니다.
+                </Typography>
               </Box>
                 )}
             </CardContent>
