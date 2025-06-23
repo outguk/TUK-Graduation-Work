@@ -386,7 +386,7 @@ export default function ScriptUpload() {
                       />
                     </Box>
                     <Typography variant="body2" sx={{ mt: 1.5 }}>
-                      대본을 업로드하면 문법적 오류, 비격식 표현, 불확실한 어조 등을 자동으로 분석합니다.
+                      마침표(.), 느낌표(!), 물음표(?) ,줄 바꿈(Enter) 을 활용해 문장을 나누고 띄어쓰기를 지켜 작성한 대본을 업로드 해주세요.
                     </Typography>
                   </CardContent>
                 </Card>

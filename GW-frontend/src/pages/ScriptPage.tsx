@@ -283,10 +283,10 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
   const analysis = scriptData.script_analysis;
 
   const analysisItems = [
-    { type: 'uncertainty', label: '추측 표현', count: analysis.uncertainty_count, description: '단정적이지 않고 추측하는 듯한 뉘앙스를 주는 표현입니다.' },
-    { type: 'non_honorific', label: '비격식 종결 어미', count: analysis.non_honorific_count, description: '공식적인 발표에 어울리지 않는 비격식적인 문장 종결 형식입니다.' },
-    { type: 'subject_verb', label: '주어-서술어 호응', count: analysis.subject_verb_mismatch_count, description: '문장의 주어와 서술어의 관계가 문법적으로 자연스럽지 않은 경우입니다.' },
-    { type: 'profanity', label: '비속어', count: analysis.profanity_count, description: '발표의 신뢰도를 떨어뜨릴 수 있는 비속어나 부적절한 단어입니다.' },
+    { type: 'uncertainty', label: '추측 표현', count: analysis.uncertainty_count, description: '불확실한 추측 표현은 신뢰도가 낮아집니다 단정적으로 작성해 보세요.' },
+    { type: 'non_honorific', label: '비격식 종결 어미', count: analysis.non_honorific_count, description: '발표에 맞지 않는 말투입니다 "-니다" 같은 격식체로 바꿔보세요.' },
+    { type: 'subject_verb', label: '주어-서술어 호응', count: analysis.subject_verb_mismatch_count, description: '불완전한 문장은 모호함을 야기합니다 주어-서술어 관계를 신경 써 작성해 보세요.' },
+    { type: 'profanity', label: '비속어', count: analysis.profanity_count, description: '비속어는 청자에게 불쾌감과 거부감을 줍니다 순화된 표준어로 작성해 보세요.' },
   ];
 
   const problemItems = analysisItems.filter(item => item.count > 0);
