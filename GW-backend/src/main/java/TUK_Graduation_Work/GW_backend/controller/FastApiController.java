@@ -141,12 +141,22 @@ public class FastApiController {
         String tempDir = System.getProperty("java.io.tmpdir");
         Path tempPath = Paths.get(tempDir, file.filename());
 
+        logger.info("대본 업로드 요청 - filename: {}, speech_minutes: {}", filename, speechMinutes);
+
         return file.transferTo(tempPath)
                 .publishOn(Schedulers.boundedElastic())
                 .then(fastApiClient.analyzeScript(tempPath.toString(), filename, speechMinutes, token))
                 .map(response -> {
+                    logger.info("FastAPI 응답 수신: {}", response);
                     Map<String, Object> result = new HashMap<>(response);
                     result.put("message", "대본 분석 성공");
+                    
+                    // _id와 id 필드 모두 확인하여 제공
+                    if (response.containsKey("_id") && !response.containsKey("id")) {
+                        result.put("id", response.get("_id"));
+                    }
+                    
+                    logger.info("최종 응답: {}", result);
                     return result;
                 })
                 .onErrorResume(e -> {

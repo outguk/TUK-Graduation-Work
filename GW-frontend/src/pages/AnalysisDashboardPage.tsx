@@ -14,6 +14,20 @@
  * 3. GET /spring/api/user/profile - 현재 로그인한 사용자 정보
  */
 
+/**
+ * AnalysisDashboardPage.tsx
+ * 
+ * 백엔드 개발자 참고사항:
+ * 이 파일은 발표 분석 대시보드의 메인 페이지입니다.
+ * 좌측의 PresentationSidebar 컴포넌트를 통해 발표 목록을 표시하고,
+ * 선택된 발표의 분석 데이터를 차트와 카드로 보여줍니다.
+ * 
+ * 필요한 API 엔드포인트:
+ * 1. GET /spring/api/my-analyses - 사용자의 모든 발표 목록
+ * 2. GET /spring/api/get-analysis?filename={filename} - 특정 발표의 상세 분석 데이터
+ * 3. GET /spring/api/user/profile - 현재 로그인한 사용자 정보
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -27,6 +41,8 @@ import {
   Fade,
   CircularProgress,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   LineChart,
@@ -43,13 +59,12 @@ import {
   GraphicEq as GraphicEqIcon,
   PersonOutline as PersonOutlineIcon,
   ArrowBack as ArrowBackIcon,
+  PlayCircleOutline,
 } from '@mui/icons-material';
-import {PlayCircleOutline} from "@mui/icons-material";
 import axios from 'axios';
 import PresentationSidebar from '../components/PresentationSidebar';
 import ScriptPage from './ScriptPage'; // ScriptPage 컴포넌트 import
 import guideImage from '../assets/guide.png';
-
 
 /**
  * 백엔드 개발자 참고사항:
@@ -109,6 +124,11 @@ interface ScriptAnalysis {
 const AnalysisDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { presentationId } = useParams<{ presentationId?: string }>();
+  
+  // 반응형 훅 추가
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
 
   /**
    * 백엔드 개발자 참고사항:
@@ -126,11 +146,9 @@ const AnalysisDashboardPage: React.FC = () => {
   const [paceData, setPaceData] = useState<PaceDataPoint[]>([]);
   const [volumeData, setVolumeData] = useState<VolumeDataPoint[]>([]);
   const [duration, setDuration] = useState("0:00");
-  // const [overallScore, setOverallScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showContent, setShowContent] = useState(false);
-
 
   // 정상 범위와 심각한 벗어남의 기준
   const SPEED_NORMAL_MIN = 110;
@@ -160,6 +178,13 @@ const AnalysisDashboardPage: React.FC = () => {
 
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [fadeTip, setFadeTip] = useState(true);
+
+  // 사이드바 너비 계산 함수
+  const getSidebarWidth = () => {
+    if (isMobile) return '280px';
+    if (isTablet) return '300px';
+    return '320px';
+  };
 
   /**
    * 백엔드 개발자 참고사항:
@@ -210,17 +235,38 @@ const AnalysisDashboardPage: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const videoPresentations: PresentationItem[] = analysesResponse.data.video_analyses.map((item: any) => ({
-          id: item.filename,
-          title: item.filename.split('.')[0],
-          date: new Date(item.timestamp).toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }).replace(/\//g, '.'),
-          duration: '0:45', // 백엔드에서 제공 시 대체
-          type: 'video',
-        }));
+        // 영상 분석 목록에서 실제 시간 정보 추출
+        const videoPresentations: PresentationItem[] = analysesResponse.data.video_analyses.map((item: any) => {
+          let duration = 'N/A';
+          
+          // 영상 분석 데이터에서 시간 정보 추출
+          try {
+            if (item.speaking_speed?.segment_wpm && item.speaking_speed.segment_wpm.length > 0) {
+              // 말하기 속도 데이터에서 최대 시간 추출
+              const maxTimeFromSpeed = Math.max(...item.speaking_speed.segment_wpm.map((s: any) => s.end || 0));
+              duration = formatTime(maxTimeFromSpeed);
+            } else if (item.volume_analysis?.segment_data && item.volume_analysis.segment_data.length > 0) {
+              // 음량 데이터에서 최대 시간 추출
+              const maxTimeFromVolume = Math.max(...item.volume_analysis.segment_data.map((s: any) => s.time_stamps?.[1] || 0));
+              duration = formatTime(maxTimeFromVolume);
+            }
+          } catch (e) {
+            console.warn('영상 시간 정보를 추출할 수 없습니다:', e);
+            duration = 'N/A';
+          }
+
+          return {
+            id: item.filename,
+            title: item.filename.split('.')[0],
+            date: new Date(item.timestamp).toLocaleDateString('ko-KR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }).replace(/\//g, '.'),
+            duration: duration, // 실제 영상 시간 사용
+            type: 'video',
+          };
+        });
 
         const scriptPresentations: PresentationItem[] = analysesResponse.data.script_analyses.map((item: any) => ({
           id: item._id,
@@ -230,7 +276,7 @@ const AnalysisDashboardPage: React.FC = () => {
             month: '2-digit',
             day: '2-digit',
           }).replace(/\//g, '.'),
-          duration: 'N/A',
+          duration: 'N/A', // 대본은 시간 정보 없음
           type: 'script',
         }));
 
@@ -247,6 +293,7 @@ const AnalysisDashboardPage: React.FC = () => {
           setSelectedType(selectedItem?.type || null);
         }
       } catch (err: any) {
+        console.error('초기 데이터 로드 오류:', err);
         setError(err.response?.data?.error || '초기 데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
@@ -263,81 +310,75 @@ const AnalysisDashboardPage: React.FC = () => {
    * - 응답 데이터를 차트와 카드에 표시할 형식으로 가공
    */
   useEffect(() => {
-  const fetchAnalysisData = async () => {
-    if (!selectedPresentationId || !selectedType) return;
+    const fetchAnalysisData = async () => {
+      if (!selectedPresentationId || !selectedType) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('인증 토큰이 없습니다.');
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('인증 토큰이 없습니다.');
+        }
+
+        let response;
+        
+        // 분석 유형에 따라 다른 API 엔드포인트 호출
+        if (selectedType === 'video') {
+          // 영상 분석 데이터 조회
+          response = await axios.get('/spring/api/get-analysis', {
+            params: { filename: selectedPresentationId },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } else if (selectedType === 'script') {
+          // 대본 분석 데이터 조회
+          response = await axios.get('/spring/api/get-script-analysis', {
+            params: { script_id: selectedPresentationId },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } else {
+          throw new Error('알 수 없는 분석 유형입니다.');
+        }
+
+        const data: AnalysisData = response.data;
+        setAnalysisData(data);
+
+        if (selectedType === 'video') {
+          // 영상 분석 데이터 가공
+          const pace: PaceDataPoint[] = data.speaking_speed?.segment_wpm.map((segment) => ({
+            time: formatTime(segment.start),
+            wpm: segment.wpm,
+          })) || [];
+          setPaceData(pace);
+
+          const volume: VolumeDataPoint[] = data.volume_analysis?.segment_data.map((segment) => ({
+            time: formatTime(segment.time_stamps[0]),
+            db: segment.db,
+          })) || [];
+          setVolumeData(volume);
+
+          const maxTime = Math.max(
+            ...data.speaking_speed?.segment_wpm.map((s) => s.end) || [0],
+            ...data.volume_analysis?.segment_data.map((s) => s.time_stamps[1]) || [0]
+          );
+          setDuration(formatTime(maxTime));
+        } else {
+          // 대본 분석은 차트 데이터 불필요
+          setPaceData([]);
+          setVolumeData([]);
+          setDuration('N/A');
+        }
+      } catch (err: any) {
+        console.error('분석 데이터 로드 에러:', err);
+        setError(err.response?.data?.error || err.response?.data?.message || '데이터를 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
       }
+    };
 
-      let response;
-      
-      // 분석 유형에 따라 다른 API 엔드포인트 호출
-      if (selectedType === 'video') {
-        // 영상 분석 데이터 조회
-        response = await axios.get('/spring/api/get-analysis', {
-          params: { filename: selectedPresentationId },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else if (selectedType === 'script') {
-        // 대본 분석 데이터 조회
-        response = await axios.get('/spring/api/get-script-analysis', {
-          params: { script_id: selectedPresentationId },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else {
-        throw new Error('알 수 없는 분석 유형입니다.');
-      }
-
-      const data: AnalysisData = response.data;
-      setAnalysisData(data);
-
-      if (selectedType === 'video') {
-        // 영상 분석 데이터 가공
-        const pace: PaceDataPoint[] = data.speaking_speed?.segment_wpm.map((segment) => ({
-          time: formatTime(segment.start),
-          wpm: segment.wpm,
-        })) || [];
-        setPaceData(pace);
-
-        const volume: VolumeDataPoint[] = data.volume_analysis?.segment_data.map((segment) => ({
-          time: formatTime(segment.time_stamps[0]),
-          db: segment.db,
-        })) || [];
-        setVolumeData(volume);
-
-        const maxTime = Math.max(
-          ...data.speaking_speed?.segment_wpm.map((s) => s.end) || [0],
-          ...data.volume_analysis?.segment_data.map((s) => s.time_stamps[1]) || [0]
-        );
-        setDuration(formatTime(maxTime));
-
-        // 점수 측정 부분분
-        // const speakingScore = data.speaking_evaluation?.overall_score || 0;
-        // const volumeScore = data.volume_evaluation?.overall_score || 0;
-        // setOverallScore(Math.round((speakingScore + volumeScore) / 2));
-      } else {
-        // 대본 분석은 차트 데이터 불필요
-        setPaceData([]);
-        setVolumeData([]);
-        setDuration('N/A');
-        // setOverallScore(0);
-      }
-    } catch (err: any) {
-      console.error('분석 데이터 로드 에러:', err);
-      setError(err.response?.data?.error || err.response?.data?.message || '데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchAnalysisData();
-}, [selectedPresentationId, selectedType]);
+    fetchAnalysisData();
+  }, [selectedPresentationId, selectedType]);
 
   /**
    * 백엔드 개발자 참고사항:
@@ -390,7 +431,6 @@ const AnalysisDashboardPage: React.FC = () => {
     navigate(`/analysis/volume/${selectedPresentationId}`);
   };
 
-
   const handleNavigateToNonverbal = () => {
     navigate(`/analysis/nonverbal/${selectedPresentationId}`);
   };
@@ -425,38 +465,66 @@ const AnalysisDashboardPage: React.FC = () => {
         userProfile={userProfile}
       />
 
-      {/* Main content */}
+      {/* Main content - 반응형 마진 적용 */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          py: { xs: 4, md: 6 },
-          px: { xs: 2, md: 4 },
-          marginLeft: '8%',
-          transition: 'margin-left 0.3s ease',
-          width: 'calc(100% - 8%)',
+          py: { xs: 2, sm: 4, md: 6 },
+          px: { xs: 1, sm: 2, md: 4 },
+          marginLeft: getSidebarWidth(),
+          transition: 'margin-left 0.3s ease-in-out',
+          width: `calc(100% - ${getSidebarWidth()})`,
+          minHeight: '100vh',
+          [theme.breakpoints.down('sm')]: {
+            marginLeft: '280px',
+            width: 'calc(100% - 280px)',
+          },
         }}
       >
-        <Container maxWidth="xl">
-          {/* Header section */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 5 }}>
-            <Box>
+        <Container 
+          maxWidth="xl" 
+          sx={{
+            px: { xs: 1, sm: 2, md: 3 },
+          }}
+        >
+          {/* Header section - 반응형 조정 */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: isMobile ? 'flex-start' : 'flex-end',
+            flexDirection: isMobile ? 'column' : 'row',
+            mb: { xs: 3, sm: 4, md: 5 },
+            gap: isMobile ? 2 : 0,
+          }}>
+            <Box sx={{ width: isMobile ? '100%' : 'auto' }}>
               <Typography 
-                variant="h4" 
+                variant={isMobile ? "h5" : "h4"} 
                 component="h1"
                 fontWeight={700}
                 sx={{ 
                   mb: 1,
                   position: 'relative',
-                  display: 'inline-block'
+                  display: 'inline-block',
+                  fontSize: {
+                    xs: '1.5rem',
+                    sm: '2rem',
+                    md: '2.125rem'
+                  }
                 }}
               >
                 {currentPresentationTitle}
               </Typography>
               <Typography 
-                variant="body1" 
+                variant={isMobile ? "body2" : "body1"} 
                 color="text.secondary"
-                sx={{ mt: 3 }}
+                sx={{ 
+                  mt: { xs: 1, md: 3 },
+                  fontSize: {
+                    xs: '0.875rem',
+                    sm: '1rem'
+                  }
+                }}
               >
                 {selectedType === 'video' ? '영상 분석이 완료되었습니다!' : '대본 분석이 완료되었습니다!'} 결과를 확인해 보세요
               </Typography>
@@ -465,12 +533,18 @@ const AnalysisDashboardPage: React.FC = () => {
               variant="outlined"
               startIcon={<ArrowBackIcon />}
               onClick={() => navigate('/main')}
+              size={isMobile ? "small" : "medium"}
               sx={{
                 borderRadius: 8,
-                px: 3,
-                py: 1,
+                px: { xs: 2, md: 3 },
+                py: { xs: 0.5, md: 1 },
                 borderColor: '#000',
                 color: '#000',
+                fontSize: {
+                  xs: '0.75rem',
+                  sm: '0.875rem'
+                },
+                alignSelf: isMobile ? 'flex-start' : 'auto',
                 '&:hover': {
                   borderColor: '#333',
                   backgroundColor: 'rgba(0, 0, 0, 0.04)'
@@ -478,7 +552,7 @@ const AnalysisDashboardPage: React.FC = () => {
               }}
               aria-label="메인으로 돌아가기"
             >
-              메인으로 돌아가기
+              {isMobile ? '메인' : '메인으로 돌아가기'}
             </Button>
           </Box>
           
@@ -510,7 +584,7 @@ const AnalysisDashboardPage: React.FC = () => {
               ) : selectedType === 'script' ? (
                 <ScriptPage scriptId={selectedPresentationId ?? ''} />
               ) : (
-                <Grid container spacing={4}>
+                <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
                   {/* Left column: Summary + Tips */}
                   <Grid item xs={12} md={3}>
                     {/* Summary card */}
@@ -1036,15 +1110,15 @@ const AnalysisDashboardPage: React.FC = () => {
           <Box 
             component="footer"
             sx={{ 
-              mt: 8, 
+              mt: { xs: 4, md: 8 }, 
               textAlign: 'center', 
               borderTop: '1px solid #eee',
-              pt: 4,
+              pt: { xs: 2, md: 4 },
               pb: 2,
               color: '#666'
             }}
           >
-            <Typography variant="body2">
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               © 2025 PRESENT INSIGHT. All rights reserved.
             </Typography>
           </Box>

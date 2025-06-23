@@ -367,32 +367,55 @@ async def analyze_script_endpoint(
     speech_minutes: int = Form(...),
     user_id: int = Depends(get_current_user),
 ):
-    # txt 파일 저장
-    txt_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(txt_path, "wb") as f:
-        f.write(await file.read())
+    try:
+        logging.info(f"대본 분석 요청 - user_id: {user_id}, filename: {filename}, speech_minutes: {speech_minutes}")
+        
+        # txt 파일 저장
+        txt_path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(txt_path, "wb") as f:
+            f.write(await file.read())
+        
+        logging.info(f"파일 저장 완료: {txt_path}")
 
-    # 대본 분석 호출
-    analysis = run_script_feedback(
-        script_path=txt_path,
-        speech_minutes=speech_minutes,
-        custom_badwords_path=os.path.join(BASE_DIR, "custom_profanities.txt"),
-    )
+        # 대본 분석 호출
+        analysis = run_script_feedback(
+            script_path=txt_path,
+            speech_minutes=speech_minutes,
+            custom_badwords_path=os.path.join(BASE_DIR, "custom_profanities.txt"),
+        )
+        
+        logging.info("대본 분석 완료")
 
-    # MongoDB 저장 (script_collection)
-    doc = {
-        "user_id": user_id,
-        "script_text": open(txt_path, "r", encoding="utf-8").read(),
-        "script_analysis": analysis,
-        "speech_minutes": speech_minutes,
-        "filename": filename,  # 영상 파일명과 연관성 유지
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-    result = await script_collection.insert_one(doc)
-    doc["_id"] = str(result.inserted_id)
-    logging.info(f"Script analysis saved: {doc['_id']}")
+        # MongoDB 저장 (script_collection)
+        doc = {
+            "user_id": user_id,
+            "script_text": open(txt_path, "r", encoding="utf-8").read(),
+            "script_analysis": analysis,
+            "speech_minutes": speech_minutes,
+            "filename": filename,  # 영상 파일명과 연관성 유지
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        result = await script_collection.insert_one(doc)
+        doc["_id"] = str(result.inserted_id)
+        
+        # 프론트엔드 호환성을 위해 id 필드도 추가
+        doc["id"] = doc["_id"]
+        
+        logging.info(f"Script analysis saved: {doc['_id']}")
 
-    return JSONResponse(content=doc)
+        # 임시 파일 삭제
+        if os.path.exists(txt_path):
+            os.remove(txt_path)
+            logging.info(f"임시 파일 삭제: {txt_path}")
+
+        return JSONResponse(content=doc)
+    
+    except Exception as e:
+        logging.error(f"Script analysis error: {e}")
+        # 임시 파일이 있다면 정리
+        if 'txt_path' in locals() and os.path.exists(txt_path):
+            os.remove(txt_path)
+        raise HTTPException(status_code=500, detail=f"대본 분석 실패: {str(e)}")
 
 # ─────────────────────────────────────────
 # ③ 텍스트 입력 대본 분석 (신규 추가)

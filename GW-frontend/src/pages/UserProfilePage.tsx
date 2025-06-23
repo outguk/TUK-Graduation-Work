@@ -1,18 +1,3 @@
-/**
- * UserProfilePage.tsx
- * 사용자 프로필 정보를 표시하고 편집할 수 있는 페이지 컴포넌트
- * 
- * 백엔드 개발자를 위한 가이드:
- * 1. 이 파일은 사용자 프로필 정보를 표시하고 수정하는 페이지를 구현합니다.
- * 2. API 연동 포인트는 주석 "API 호출(백엔드 수정 필요)"로 표시되어 있습니다.
- * 3. 현재는 테스트용 목업 데이터를 사용 중이며, 실제 구현 시 해당 부분을 제거하고 API 응답을 사용해야 합니다.
- * 
- * 기능:
- * - 사용자 프로필 정보 조회 및 표시
- * - 프로필 정보 편집 (이름, 이메일, 비밀번호)
- * - 사용자 활동 통계 및 최근 활동 표시
- */
-
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -30,39 +15,37 @@ import {
   Alert,
   Card,
   CardContent,
+  Chip,
 } from '@mui/material';
-import { Edit as EditIcon, Save as SaveIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon, 
+  Save as SaveIcon, 
+  ArrowBack as ArrowBackIcon,
+  Movie as MovieIcon,
+  TextSnippet as TextSnippetIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 /**
- * 사용자 정보 타입 정의
- * 
- * 백엔드 개발자 참고사항:
- * - 이 인터페이스는 API 응답의 구조와 일치해야 합니다
- * - name: 사용자 이름 (필수)
- * - email: 이메일 주소 (선택)
- * - joinDate: 가입일자 문자열 (ISO 형식 권장: YYYY-MM-DD)
- * - totalPresentations: 총 발표 분석 횟수
- * - recentActivity: 최근 활동 내역 배열 (선택)
+ * 사용자 정보 타입 정의 - 수정된 버전
  */
 type UserProfile = {
   name: string;
   email?: string | null;
   joinDate: string;
-  totalPresentations: number;
+  totalVideoPresentations: number;
+  totalScriptAnalyses: number;
   recentActivity?: {
-    date: string;      // 활동 날짜 (ISO 형식 권장: YYYY-MM-DD)
-    description: string; // 활동 설명
+    date: string;
+    description: string;
+    type: 'video' | 'script';
+    id: string; // 분석 결과 ID
   }[];
 };
 
 /**
  * 프로필 편집 폼 데이터 타입 정의
- * 
- * 백엔드 개발자 참고사항:
- * - 이 인터페이스는 프로필 업데이트 API 요청 시 사용되는 데이터 구조입니다
- * - 비밀번호 변경 시 currentPassword, newPassword 필드가 함께 전송됩니다
  */
 type ProfileFormData = {
   name: string;
@@ -72,21 +55,14 @@ type ProfileFormData = {
   confirmPassword: string;
 };
 
-/**
- * 사용자 프로필 페이지 컴포넌트
- * 
- * 백엔드 개발자 참고사항:
- * - 페이지 로드 시 사용자 정보를 가져오는 API 호출이 이루어집니다
- * - 프로필 수정 시 업데이트 API 호출이 이루어집니다
- * - 오류 처리 및 성공 메시지 표시 로직이 구현되어 있습니다
- */
 const UserProfilePage: React.FC = () => {
   // 기본 상태 관리
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
     email: '',
     joinDate: new Date().toISOString(),
-    totalPresentations: 0,
+    totalVideoPresentations: 0,
+    totalScriptAnalyses: 0,
     recentActivity: [],
   });
   
@@ -117,82 +93,124 @@ const UserProfilePage: React.FC = () => {
   }, []);
   
   /**
-   * 사용자 정보 불러오기
-   * 
-   * 백엔드 개발자 참고사항:
-   * 1. API 엔드포인트: GET /api/user/profile
-   * 2. 인증: 현재 로그인한 사용자의 정보를 반환합니다 (토큰 기반 인증 사용)
-   * 3. 응답 형식: UserProfile 타입과 일치해야 합니다
-   * 4. 개발 완료 후 아래 목업 데이터 부분을 제거하고 실제 API 응답으로 대체하세요
+   * 사용자 정보 불러오기 - 수정된 버전
    */
-const fetchUserProfile = async () => {
-  setLoading(true);
-  const token = localStorage.getItem('token');
-  if (!token) {
-    setError('로그인이 필요합니다.');
-    setLoading(false);
-    navigate('/');
-    return;
-  }
-  console.log('Sending token:', token); // 토큰 값 확인
+  const fetchUserProfile = async () => {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('로그인이 필요합니다.');
+      setLoading(false);
+      navigate('/');
+      return;
+    }
 
-  let combinedProfile: UserProfile = {
-    name: '',
-    email: '',
-    joinDate: new Date().toISOString(),
-    totalPresentations: 0,
-    recentActivity: [],
-  };
-
-  try {
-    // Spring Boot 호출
-    const springConfig = { headers: { Authorization: `Bearer ${token}` } };
-    console.log('Spring Boot request config:', springConfig);
-    const userResponse = await axios.get('http://localhost:8080/spring/api/user/profile', springConfig);
-    console.log('Spring Boot response:', userResponse.data);
-
-    combinedProfile = {
-      ...combinedProfile,
-      name: userResponse.data.name || userResponse.data.username || 'Unknown',
-      email: userResponse.data.email || '',
-      joinDate: userResponse.data.joinDate || new Date().toISOString(),
+    let combinedProfile: UserProfile = {
+      name: '',
+      email: '',
+      joinDate: new Date().toISOString(),
+      totalVideoPresentations: 0,
+      totalScriptAnalyses: 0,
+      recentActivity: [],
     };
 
-    // FastAPI 호출 (독립적으로 처리)
     try {
-      const fastApiConfig = { headers: { Authorization: `Bearer ${token}` } };
-      console.log('FastAPI request config:', fastApiConfig);
-      const analysisResponse = await axios.get('http://localhost:5000/fastapi/api/analysis/stats', fastApiConfig);
-      console.log('FastAPI response:', analysisResponse.data);
+      // 1. Spring Boot에서 사용자 기본 정보 가져오기
+      const springConfig = { headers: { Authorization: `Bearer ${token}` } };
+      const userResponse = await axios.get('/spring/api/user/profile', springConfig);
+
       combinedProfile = {
         ...combinedProfile,
-        totalPresentations: analysisResponse.data.totalPresentations || 0,
-        recentActivity: analysisResponse.data.recentActivity || [],
+        name: userResponse.data.name || userResponse.data.username || 'Unknown',
+        email: userResponse.data.email || '',
+        joinDate: userResponse.data.joinDate || new Date().toISOString(),
       };
-    } catch (fastApiErr) {
-      console.warn('FastAPI request failed:', fastApiErr);
-      // FastAPI 실패 시 기본값 유지
-    }
 
-    console.log('Combined profile:', combinedProfile); // 디버깅용
+      // 2. FastAPI에서 분석 통계 가져오기
+      try {
+        const fastApiConfig = { headers: { Authorization: `Bearer ${token}` } };
+        const analysisResponse = await axios.get('/spring/api/analysis/stats', fastApiConfig);
+        
+        console.log('Analysis stats response:', analysisResponse.data);
 
-    setProfile(combinedProfile);
-    setFormData({
-      name: combinedProfile.name,
-      email: combinedProfile.email || '',
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-  } catch (err) {
-    console.error('Profile load error:', err);
-    if (axios.isAxiosError(err) && err.response) {
-      setError(`Profile load failed: ${err.response.status} - ${err.response.data.message || err.message}`);
-      console.log('Error response:', err.response.data);
-    } else {
-      setError('Failed to connect to server.');
-    }
-    setProfile(combinedProfile);
+        // FastAPI 응답 구조에 맞게 데이터 매핑
+        const statsData = analysisResponse.data;
+        
+        combinedProfile = {
+          ...combinedProfile,
+          totalVideoPresentations: statsData.totalVideoPresentations || 0,
+          totalScriptAnalyses: statsData.totalScriptAnalyses || 0,
+        };
+
+        // 3. 최근 활동 데이터 통합 처리
+        const recentVideoActivity = (statsData.recentVideoActivity || []).map((item: any) => ({
+          date: item.date || new Date().toISOString(),
+          description: `영상 분석: ${item.description || 'Unknown'}`,
+          type: 'video' as const,
+          id: item.description || 'unknown', // filename 사용
+        }));
+
+        const recentScriptActivity = (statsData.recentScriptActivity || []).map((item: any) => ({
+          date: item.date || new Date().toISOString(),
+          description: `대본 분석: ${item.description || 'Unknown'}`,
+          type: 'script' as const,
+          id: item.description || 'unknown', // script_id 또는 filename 사용
+        }));
+
+        // 모든 활동을 날짜순으로 정렬하여 통합
+        const allActivities = [...recentVideoActivity, ...recentScriptActivity]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 10); // 최근 10개만 표시
+
+        combinedProfile.recentActivity = allActivities;
+
+      } catch (fastApiErr) {
+        console.warn('FastAPI 통계 요청 실패:', fastApiErr);
+        
+        // FastAPI 실패 시 대안: Spring Boot를 통해 분석 목록 직접 가져오기
+        try {
+          const analysesResponse = await axios.get('/spring/api/my-analyses', springConfig);
+          console.log('My analyses response:', analysesResponse.data);
+          
+          const videoAnalyses = analysesResponse.data.video_analyses || [];
+          const scriptAnalyses = analysesResponse.data.script_analyses || [];
+          
+          combinedProfile.totalVideoPresentations = videoAnalyses.length;
+          combinedProfile.totalScriptAnalyses = scriptAnalyses.length;
+          
+          // 최근 활동 생성
+          const recentVideoActivity = videoAnalyses
+            .slice(0, 5)
+            .map((item: any) => ({
+              date: item.timestamp || new Date().toISOString(),
+              description: `영상 분석: ${item.filename?.split('.')[0] || 'Unknown'}`,
+              type: 'video' as const,
+              id: item.filename || item._id,
+            }));
+
+          const recentScriptActivity = scriptAnalyses
+            .slice(0, 5)
+            .map((item: any) => ({
+              date: item.timestamp || new Date().toISOString(),
+              description: `대본 분석: ${item.filename?.split('.')[0] || 'Unknown'}`,
+              type: 'script' as const,
+              id: item._id,
+            }));
+
+          const allActivities = [...recentVideoActivity, ...recentScriptActivity]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 10);
+
+          combinedProfile.recentActivity = allActivities;
+          
+        } catch (myAnalysesErr) {
+          console.warn('My analyses 요청도 실패:', myAnalysesErr);
+        }
+      }
+
+      console.log('최종 프로필 데이터:', combinedProfile);
+
+      setProfile(combinedProfile);
       setFormData({
         name: combinedProfile.name,
         email: combinedProfile.email || '',
@@ -200,59 +218,62 @@ const fetchUserProfile = async () => {
         newPassword: '',
         confirmPassword: '',
       });
-  } finally {
-    setLoading(false);
-  }
-};
+      setError(null);
+
+    } catch (err) {
+      console.error('프로필 로드 에러:', err);
+      if (axios.isAxiosError(err) && err.response) {
+        setError(`프로필 로드 실패: ${err.response.status} - ${err.response.data.message || err.message}`);
+      } else {
+        setError('서버 연결에 실패했습니다.');
+      }
+      
+      // 오류 발생 시에도 기본 프로필 설정
+      setProfile(combinedProfile);
+      setFormData({
+        name: combinedProfile.name,
+        email: combinedProfile.email || '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchUserProfile();
   }, [navigate]);
   
-//   // 편집 모드 토글
-const toggleEditMode = () => {
-  if (editMode) {
-    setFormData({
-      name: profile.name,
-      email: profile.email || '',
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-    setError(null);
-  }
-  setEditMode(!editMode);
-};
+  // 편집 모드 토글
+  const toggleEditMode = () => {
+    if (editMode) {
+      setFormData({
+        name: profile.name,
+        email: profile.email || '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setError(null);
+    }
+    setEditMode(!editMode);
+  };
   
-//   // 폼 입력값 변경 처리
-const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-  setFormData(prev => ({ ...prev, [name]: value }));
-};
+  // 폼 입력값 변경 처리
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
   
   /**
    * 프로필 업데이트 처리
-   * 
-   * 백엔드 개발자 참고사항:
-   * 1. API 엔드포인트: PUT /api/user/profile
-   * 2. 요청 본문:
-   *    { 
-   *      name: string,
-   *      email: string,
-   *      currentPassword?: string,  // 비밀번호 변경 시에만 포함
-   *      newPassword?: string       // 비밀번호 변경 시에만 포함
-   *    }
-   * 3. 응답 코드:
-   *    - 200: 성공
-   *    - 400: 잘못된 요청 (유효하지 않은 입력)
-   *    - 401: 인증 실패 (현재 비밀번호가 올바르지 않음)
-   *    - 409: 충돌 (이미 사용 중인 이메일)
-   * 4. 비밀번호 변경은 선택사항이며, currentPassword와 newPassword가 모두 제공된 경우에만 처리합니다
    */
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-     // 클라이언트 측 기본 유효성 검사
+    // 클라이언트 측 기본 유효성 검사
     if (!formData.name.trim()) {
       setError('이름은 필수 입력 항목입니다.');
       return;
@@ -272,6 +293,7 @@ const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSubmitting(true);
     setError(null);
     const token = localStorage.getItem('token');
+    
     try {
       const requestData = {
         name: formData.name,
@@ -280,19 +302,19 @@ const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           ? { currentPassword: formData.currentPassword, newPassword: formData.newPassword }
           : {}),
       };
-      console.log('Sending update request:', requestData);
-      const response = await axios.put('http://localhost:8080/spring/api/user/profile', requestData, {
+      
+      const response = await axios.put('/spring/api/user/profile', requestData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Update response:', response.data);
 
-       // 업데이트 후 즉시 최신 데이터 가져오기
+      // 업데이트 후 즉시 최신 데이터 가져오기
       setProfile(prev => ({
         ...prev,
         name: response.data.name || prev.name,
         email: response.data.email || prev.email,
         joinDate: response.data.joinDate || prev.joinDate,
       }));
+      
       setFormData(prev => ({
         ...prev,
         name: response.data.name || prev.name,
@@ -305,12 +327,9 @@ const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setSuccess('프로필이 성공적으로 업데이트되었습니다.');
       setEditMode(false);
       
-      // 비밀번호 필드 초기화
-      setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        // API 오류 응답에 따른 메시지 처리
         const status = err.response.status;
         if (status === 400) {
           setError('입력한 정보가 유효하지 않습니다.');
@@ -330,14 +349,30 @@ const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
   
-// 이름의 첫 글자 가져오기 (아바타용)
-const getInitial = (name: string | null | undefined): string => {
-  if (!name || name.trim() === '') {
-    return 'U';
-  }
-  const firstChar = name.trim().charAt(0);
-  return firstChar ? firstChar.toUpperCase() : 'U';
-};
+  // 이름의 첫 글자 가져오기 (아바타용)
+  const getInitial = (name: string | null | undefined): string => {
+    if (!name || name.trim() === '') {
+      return 'U';
+    }
+    const firstChar = name.trim().charAt(0);
+    return firstChar ? firstChar.toUpperCase() : 'U';
+  };
+
+  // 활동 클릭 시 해당 분석 페이지로 이동
+  const handleActivityClick = (activity: {
+    date: string;
+    description: string;
+    type: 'video' | 'script';
+    id: string;
+  }) => {
+    if (activity.type === 'video') {
+      // 영상 분석 결과 페이지로 이동
+      navigate(`/analysis/${activity.id}`);
+    } else if (activity.type === 'script') {
+      // 대본 분석 결과 페이지로 이동
+      navigate(`/analysis/${activity.id}`);
+    }
+  };
 
   return (
     <Box
@@ -686,11 +721,7 @@ const getInitial = (name: string | null | undefined): string => {
                       </Box>
                     ) : (
                       <Box>
-                        {/* 활동 통계 카드
-                           * 백엔드 개발자 참고:
-                           * - totalPresentations는 사용자가 분석한 총 발표 수를 표시합니다
-                           * - recentActivity.length는 최근 활동 수를 표시합니다
-                        */}
+                        {/* 활동 통계 카드 - 수정된 버전 */}
                         <Card
                           sx={{
                             mb: 3,
@@ -705,23 +736,33 @@ const getInitial = (name: string | null | undefined): string => {
                             </Typography>
                             
                             <Grid container spacing={2} sx={{ mt: 1 }}>
-                              <Grid item xs={6}>
+                              <Grid item xs={4}>
                                 <Box sx={{ textAlign: 'center', p: 2 }}>
                                   <Typography variant="h4" fontWeight={700}>
-                                    {profile.totalPresentations}
+                                    {profile.totalVideoPresentations}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    총 발표 분석
+                                    영상 분석
                                   </Typography>
                                 </Box>
                               </Grid>
-                              <Grid item xs={6}>
+                              <Grid item xs={4}>
                                 <Box sx={{ textAlign: 'center', p: 2 }}>
                                   <Typography variant="h4" fontWeight={700}>
-                                    {profile.recentActivity ? profile.recentActivity.length : 0}
+                                    {profile.totalScriptAnalyses}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    최근 활동
+                                    대본 분석
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={4}>
+                                <Box sx={{ textAlign: 'center', p: 2 }}>
+                                  <Typography variant="h4" fontWeight={700}>
+                                    {profile.totalVideoPresentations + profile.totalScriptAnalyses}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    총 분석
                                   </Typography>
                                 </Box>
                               </Grid>
@@ -729,12 +770,7 @@ const getInitial = (name: string | null | undefined): string => {
                           </CardContent>
                         </Card>
                         
-                        {/* 최근 활동 카드
-                           * 백엔드 개발자 참고:
-                           * - recentActivity 배열의 각 항목은 date와 description을 포함해야 합니다
-                           * - 각 활동을 클릭하면 해당 분석 페이지로 이동합니다 (index 기반)
-                           * - recentActivity는 날짜 기준 내림차순으로 정렬되어야 합니다
-                        */}
+                        {/* 최근 활동 카드 - 수정된 버전 */}
                         {profile.recentActivity && profile.recentActivity.length > 0 && (
                           <Card
                             sx={{
@@ -745,7 +781,7 @@ const getInitial = (name: string | null | undefined): string => {
                           >
                             <CardContent sx={{ p: 3 }}>
                               <Typography variant="h6" fontWeight={600} gutterBottom>
-                                최근 활동
+                                최근 활동 ({profile.recentActivity.length}개)
                               </Typography>
                               
                               <Stack spacing={2} sx={{ mt: 2 }}>
@@ -756,22 +792,117 @@ const getInitial = (name: string | null | undefined): string => {
                                       p: 2, 
                                       borderRadius: 2, 
                                       bgcolor: '#f5f5f5',
-                                      transition: 'background-color 0.2s ease',
+                                      transition: 'all 0.2s ease',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 2,
                                       '&:hover': {
                                         bgcolor: '#f0f0f0',
-                                        cursor: 'pointer'
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                                       }
                                     }}
-                                    onClick={() => navigate(`/analysis/${index}`)} // 사용자가 활동을 클릭하면 해당 분석 페이지로 이동
+                                    onClick={() => handleActivityClick(activity)}
                                   >
-                                    <Typography variant="body2" fontWeight={500}>
-                                      {activity.description}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {new Date(activity.date).toLocaleDateString()}
-                                    </Typography>
+                                    {/* 활동 타입 아이콘 */}
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                      {activity.type === 'video' ? (
+                                        <MovieIcon sx={{ color: '#1976d2', fontSize: 24 }} />
+                                      ) : (
+                                        <TextSnippetIcon sx={{ color: '#ed6c02', fontSize: 24 }} />
+                                      )}
+                                    </Box>
+                                    
+                                    {/* 활동 내용 */}
+                                    <Box sx={{ flexGrow: 1 }}>
+                                      <Typography variant="body1" fontWeight={500}>
+                                        {activity.description}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {new Date(activity.date).toLocaleDateString('ko-KR', {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </Typography>
+                                    </Box>
+                                    
+                                    {/* 활동 타입 칩 */}
+                                    <Chip 
+                                      label={activity.type === 'video' ? '영상' : '대본'}
+                                      size="small"
+                                      color={activity.type === 'video' ? 'primary' : 'warning'}
+                                      variant="outlined"
+                                    />
                                   </Box>
                                 ))}
+                              </Stack>
+                              
+                              {/* 더 많은 활동 보기 버튼 */}
+                              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                                <Button
+                                  variant="outlined"
+                                  onClick={() => navigate('/analysis')}
+                                  sx={{
+                                    borderColor: '#000',
+                                    color: '#000',
+                                    '&:hover': {
+                                      borderColor: '#333',
+                                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                    }
+                                  }}
+                                >
+                                  모든 분석 결과 보기
+                                </Button>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        )}
+                        
+                        {/* 활동이 없는 경우 */}
+                        {(!profile.recentActivity || profile.recentActivity.length === 0) && (
+                          <Card
+                            sx={{
+                              borderRadius: 3,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                              border: '1px solid #f0f0f0'
+                            }}
+                          >
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                              <Typography variant="h6" fontWeight={600} gutterBottom>
+                                아직 활동이 없습니다
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                첫 번째 발표를 업로드하거나 대본을 분석해보세요!
+                              </Typography>
+                              <Stack direction="row" spacing={2} justifyContent="center">
+                                <Button
+                                  variant="contained"
+                                  onClick={() => navigate('/upload')}
+                                  sx={{
+                                    backgroundColor: '#000',
+                                    '&:hover': { backgroundColor: '#333' }
+                                  }}
+                                >
+                                  영상 업로드
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  onClick={() => navigate('/analysis/script-upload')}
+                                  sx={{
+                                    borderColor: '#000',
+                                    color: '#000',
+                                    '&:hover': {
+                                      borderColor: '#333',
+                                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                    }
+                                  }}
+                                >
+                                  대본 분석
+                                </Button>
                               </Stack>
                             </CardContent>
                           </Card>

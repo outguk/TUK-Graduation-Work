@@ -77,7 +77,7 @@ export default function ScriptUpload() {
     const token = localStorage.getItem('token');
     if (!token) {
       setError('로그인이 필요합니다.');
-      navigate('/login');
+      navigate('/signin');
       return;
     }
 
@@ -90,21 +90,58 @@ export default function ScriptUpload() {
     formData.append('speech_minutes', minutes.toString());
 
     try {
+      console.log('대본 분석 요청 시작...');
+      console.log('FormData 내용:', {
+        scriptFile: file.name,
+        filename: file.name,
+        speech_minutes: minutes
+      });
+
       const response = await axios.post('/spring/api/script-upload', formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
         },
       });
-      if (response.data && response.data.id) {
-        console.log('분석 성공, script_id:', response.data.id);
-        navigate(`/script/analysis/${response.data.id}`);
+      
+      console.log('Spring Boot 응답:', response.data);
+      
+      // 응답 데이터 구조 확인 및 처리
+      if (response.data) {
+        // _id 또는 id 필드 확인
+        const scriptId = response.data._id || response.data.id;
+        
+        if (scriptId) {
+          console.log('분석 성공, script_id:', scriptId);
+          // AnalysisDashboardPage로 리디렉션
+          navigate(`/analysis/${scriptId}`);
+        } else {
+          console.error('응답 데이터 구조:', response.data);
+          console.error('_id나 id 필드를 찾을 수 없음');
+          setError('분석 실패: 응답에서 script_id를 찾을 수 없습니다.');
+        }
       } else {
-        console.error('응답 데이터 구조:', response.data);
-        setError('분석 실패: 응답에서 script_id를 찾을 수 없습니다.');
+        console.error('응답 데이터가 없음');
+        setError('분석 실패: 서버 응답이 없습니다.');
       }
     } catch (err: any) {
-      setError('대본 분석 실패: ' + (err.response?.data?.message || err.message));
+      console.error('대본 분석 요청 실패:', err);
+      
+      if (err.response) {
+        console.error('응답 상태:', err.response.status);
+        console.error('응답 데이터:', err.response.data);
+        
+        const errorMessage = err.response.data?.message || 
+                           err.response.data?.error || 
+                           `서버 오류 (${err.response.status})`;
+        setError(`대본 분석 실패: ${errorMessage}`);
+      } else if (err.request) {
+        console.error('요청 실패:', err.request);
+        setError('대본 분석 실패: 서버에 연결할 수 없습니다.');
+      } else {
+        console.error('기타 오류:', err.message);
+        setError(`대본 분석 실패: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -129,7 +166,7 @@ export default function ScriptUpload() {
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type === 'text/plain') {
+      if (droppedFile.type === 'text/plain' || droppedFile.name.endsWith('.txt')) {
         setFile(droppedFile);
         setError(null);
       } else {
@@ -141,7 +178,7 @@ export default function ScriptUpload() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-       if (selectedFile.type === 'text/plain') {
+      if (selectedFile.type === 'text/plain' || selectedFile.name.endsWith('.txt')) {
         setFile(selectedFile);
         setError(null);
       } else {
@@ -277,14 +314,14 @@ export default function ScriptUpload() {
                     이곳에 txt 파일을 드래그 앤 드롭하거나<br />파일을 직접 선택하여 업로드하세요.
                   </Typography>
                   
-                   <TextField
-                      label="예상 발표 시간(분)"
-                      type="number"
-                      value={minutes}
-                      onChange={(e) => setMinutes(Number(e.target.value))}
-                      InputProps={{ inputProps: { min: 1 } }}
-                      sx={{ mb: 2, width: '80%', maxWidth: '320px' }}
-                    />
+                  <TextField
+                    label="예상 발표 시간(분)"
+                    type="number"
+                    value={minutes}
+                    onChange={(e) => setMinutes(Number(e.target.value))}
+                    InputProps={{ inputProps: { min: 1 } }}
+                    sx={{ mb: 2, width: '80%', maxWidth: '320px' }}
+                  />
 
                   <input
                     id="script-upload-input"
@@ -294,21 +331,21 @@ export default function ScriptUpload() {
                     style={{ display: 'none' }}
                   />
                   <Box sx={{ display: 'flex', alignItems: 'center', my: 2 }}>
-                     <Button
-                        component="label"
-                        htmlFor="script-upload-input"
-                        variant="outlined"
-                        sx={{
-                          borderRadius: 2, px: 2, py: 0.5, mr: 2,
-                          borderColor: '#000', color: '#000',
-                          '&:hover': { borderColor: '#333', backgroundColor: 'rgba(0, 0, 0, 0.04)'}
-                        }}
-                      >
-                        대본 선택
-                      </Button>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {file ? file.name : '선택된 파일 없음'}
-                      </Typography>
+                    <Button
+                      component="label"
+                      htmlFor="script-upload-input"
+                      variant="outlined"
+                      sx={{
+                        borderRadius: 2, px: 2, py: 0.5, mr: 2,
+                        borderColor: '#000', color: '#000',
+                        '&:hover': { borderColor: '#333', backgroundColor: 'rgba(0, 0, 0, 0.04)'}
+                      }}
+                    >
+                      대본 선택
+                    </Button>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {file ? file.name : '선택된 파일 없음'}
+                    </Typography>
                   </Box>
 
                   <Button
@@ -322,7 +359,12 @@ export default function ScriptUpload() {
                       color: '#fff', '&:hover': { backgroundColor: '#333' }
                     }}
                   >
-                    {loading ? (<CircularProgress size={24} color="inherit" />) : '대본 분석 시작'}
+                    {loading ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
+                        분석 중...
+                      </Box>
+                    ) : '대본 분석 시작'}
                   </Button>
                 </Paper>
               </Grid>
@@ -344,9 +386,7 @@ export default function ScriptUpload() {
                       />
                     </Box>
                     <Typography variant="body2" sx={{ mt: 1.5 }}>
-                      주의사항 및 가이드1
-                      <br />
-                      두 번째 줄 가이드라인입니다.
+                      대본을 업로드하면 문법적 오류, 비격식 표현, 불확실한 어조 등을 자동으로 분석합니다.
                     </Typography>
                   </CardContent>
                 </Card>
@@ -366,9 +406,7 @@ export default function ScriptUpload() {
                       />
                     </Box>
                     <Typography variant="body2" sx={{ mt: 1.5 }}>
-                      주의사항 및 가이드2
-                      <br />
-                      두 번째 줄 가이드라인입니다.
+                      분석 완료 후 문제가 있는 문장들을 하이라이트로 표시하여 쉽게 수정할 수 있습니다.
                     </Typography>
                   </CardContent>
                 </Card>
