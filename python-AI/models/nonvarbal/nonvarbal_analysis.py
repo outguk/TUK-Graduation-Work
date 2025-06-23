@@ -116,4 +116,3 @@ if __name__ == "__main__":
     )
     analysis_result = video_nonverbal_analysis(sample_video)
     # print("분석 결과:", analysis_result)
-

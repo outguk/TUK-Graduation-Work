@@ -29,6 +29,10 @@ def load_pickle_file(filepath):
         return None
 
 def get_used_frame_dirs(keypoints_data):
+    # 전체 세그먼트 목록이 있으면(정상+비정상), 그걸 그대로 반환
+    if "all_segments" in keypoints_data:
+        return keypoints_data["all_segments"]
+    # 그렇지 않으면 기존 annotations 기반
     return [ann["frame_dir"] for ann in keypoints_data["annotations"]]
 
 def check_wrist_distance(keypoints_data, frame_dir):
@@ -82,6 +86,10 @@ def check_wrist_distance(keypoints_data, frame_dir):
     return {"wrist_distance": None, "is_hands_behind": False}
 
 def process_results(results, used_frame_dirs, keypoints_data):
+    print("=== MAPPING DEBUG ===")
+    stgcn_dirs = keypoints_data["split"]["xsub_val"]
+    pred_map   = {frame: results[i] for i, frame in enumerate(stgcn_dirs)}
+
     json_results = []
     previous_frame = None
     sample_idx = 1  # 샘플 번호 (정상 행동 포함)
@@ -93,92 +101,53 @@ def process_results(results, used_frame_dirs, keypoints_data):
     # 먼저 모든 샘플의 기본 정보 생성
     initial_samples = []
     
-    for res, frame_dir in zip(results, used_frame_dirs):
-        probs = np.array(res['pred_score'])  # 확률 리스트
-        # 확률이 높은 3개의 클래스 찾기
-        top3_indices = np.argsort(probs)[-3:][::-1]
-        top3_probs = probs[top3_indices]
-        top3_classes = [class_labels[i] for i in top3_indices]
-        
-        top1_prob = top3_probs[0]
-        is_normal = bool(top1_prob < threshold)
-        
-        # frame_dir에서 숫자 부분만 추출
-        current_frame = int(frame_dir.split('_')[-1])  # 예: frame_40 → 40
-        
-        # 손목 간 거리 확인
-        wrist_check = check_wrist_distance(keypoints_data, frame_dir)
-        
-        # 스킵된 구간 처리
-        if previous_frame is not None:
-            frame_gap = current_frame - previous_frame
-            if frame_gap > frames_per_annotation:
-                skipped_start = previous_frame + frames_per_annotation
-                skipped_end = current_frame - 1
-                
-                for segment_start in range(skipped_start, skipped_end + 1, frames_per_annotation):
-                    segment_end = min(segment_start + frames_per_annotation - 1, skipped_end)
-                    segment_start_time = segment_start / fps
-                    segment_end_time = segment_end / fps
-                    
-                    segment_frame_dir = f"frame_{segment_start}"
-                    
-                    segment_wrist_check = check_wrist_distance(keypoints_data, segment_frame_dir)
-                    
-                    segment_data = {
-                        "sample_number": sample_idx,
-                        "time_range": f"{segment_start_time:.2f}s ~ {segment_end_time:.2f}s",
-                        "frame_range": f"{segment_start} ~ {segment_end}",
-                        "frame_dir": segment_frame_dir,
-                        "is_normal": True,
-                        "frame_num": segment_start,  # 후처리용
-                        "is_skipped_segment": True
-                    }
-                    
-                    if segment_wrist_check["wrist_distance"] is not None:
-                        segment_data["wrist_distance"] = segment_wrist_check["wrist_distance"]
-                    
-                    initial_samples.append(segment_data)
-                    sample_idx += 1
+        # ── frame_dir 기준으로 예측+정상구간 매핑 ──
+    for frame_dir in used_frame_dirs:
+        print(f"{frame_dir}: {'PREDICTED' if frame_dir in pred_map else 'NORMAL'}")
 
-        start_frame = current_frame
-        end_frame = start_frame + frames_per_annotation - 1
+        if frame_dir in pred_map:
+            # STGCN 결과가 있는 구간
+            res = pred_map[frame_dir]
+            probs = np.array(res['pred_score'])
+            top3_idx     = np.argsort(probs)[-3:][::-1]
+            top3_probs   = probs[top3_idx]
+            top3_classes = [class_labels[j] for j in top3_idx]
+            is_normal = bool(top3_probs[0] < threshold)
+        else:
+            # 예측 없는 구간 → 정상 처리
+            top3_probs   = []
+            top3_classes = []
+            is_normal    = True
 
-        start_time = start_frame / fps
-        end_time = end_frame / fps
+        # 시간 계산 (2초 단위)
+        idx         = used_frame_dirs.index(frame_dir)
+        segment_dur = frames_per_annotation / fps  # e.g. 10/5 = 2.0
+        start_time  = idx * segment_dur
+        end_time    = (idx + 1) * segment_dur
 
+        # 손목 체크
+        wrist = check_wrist_distance(keypoints_data, frame_dir)
+
+        # 샘플 생성
         sample_data = {
             "sample_number": sample_idx,
-            "time_range": f"{start_time:.2f}s ~ {end_time:.2f}s",
-            "frame_range": f"{start_frame} ~ {end_frame}",
-            "frame_dir": frame_dir,
-            "is_normal": is_normal,
-            "frame_num": current_frame,
-            "is_skipped_segment": False
+            "time_range":    f"{start_time:.2f}s ~ {end_time:.2f}s",
+            "frame_range":   f"{frame_dir.split('_')[-1]} ~ {int(frame_dir.split('_')[-1]) + frames_per_annotation - 1}",
+            "frame_dir":     frame_dir,
+            "is_normal":     is_normal,
         }
-        
-        if wrist_check["wrist_distance"] is not None:
-            sample_data["wrist_distance"] = wrist_check["wrist_distance"]
-        
+        if wrist.get("wrist_distance") is not None:
+            sample_data["wrist_distance"] = float(wrist["wrist_distance"])
+
         if not is_normal:
             sample_data["top_classes"] = [
-                {
-                    "class": top3_classes[i],
-                    "probability": round(float(top3_probs[i]) * 100, 2)
-                }
-                for i in range(3)
+                {"class": top3_classes[k],
+                "probability": float(round(float(top3_probs[k]) * 100, 2))}
+                for k in range(len(top3_classes))
             ]
-            
-            # 팔동작(뒷짐) 감지 여부
-            if any(c == "팔동작(뒷짐)" for c in top3_classes[:1]):
-                sample_data["is_hands_behind_detected"] = True
-                last_hands_behind_frame = current_frame
-                hands_behind_count += 1
 
         initial_samples.append(sample_data)
         sample_idx += 1
-
-        previous_frame = current_frame
 
     print(f"초기 샘플 개수: {len(initial_samples)}")
     
@@ -258,7 +227,40 @@ def process_results(results, used_frame_dirs, keypoints_data):
     print(f"뒷짐으로 감지된 샘플 인덱스: {hands_behind_indices}")
     print(f"총 {len(processed_samples)}개 샘플 중 {hands_behind_count}개가 뒷짐 자세로 감지/재분류됨")
     
-    return processed_samples
+    
+    # ── ① 영상 순서대로 재정렬 & 정상 누락 채우기 ──
+    final_results = []
+    next_idx = 1
+    for frame_dir in used_frame_dirs:
+        matched = [s for s in processed_samples if s["frame_dir"] == frame_dir]
+        if matched:
+            for m in matched:
+                m["sample_number"] = next_idx
+                final_results.append(m)
+                next_idx += 1
+        else:
+            # 모델에 안 들어간 정상 구간
+            num = int(frame_dir.split("_")[-1])
+            ft = {
+                "sample_number": next_idx,
+                "time_range":  f"{num/fps:.2f}s ~ {(num+frames_per_annotation-1)/fps:.2f}s",
+                "frame_range": f"{num} ~ {num+frames_per_annotation-1}",
+                "frame_dir":   frame_dir,
+                "is_normal":   True,
+                "top_classes": []
+            }
+            final_results.append(ft)
+            next_idx += 1
+
+    # ── ② 반환 변경 ──
+    return final_results
+
+
+
+
+
+
+
 
 def save_json_results(json_results, output_filepath):
     with open(output_filepath, "w", encoding="utf-8") as f:
@@ -273,9 +275,21 @@ def main(result_file, keypoints_pkl_file, output_json_file):
     output_json_file: 최종 결과를 저장할 JSON 파일 경로
     """
     results = load_pickle_file(result_file)
+    print("=== STGCN PREDICTIONS DEBUG ===")
+    print(f"Loaded {len(results)} predictions")
+    for idx, r in enumerate(results[:5]):
+        print(f"  [{idx}] pred_score[:3]={r['pred_score'][:3]}")
+    print("...")
+
+    
+    
     keypoints_data = load_pickle_file(keypoints_pkl_file)
     used_frame_dirs = get_used_frame_dirs(keypoints_data)
-    
+    print("=== FRAME DIRS DEBUG ===")
+    print(f"Total frame dirs: {len(used_frame_dirs)}")
+    print("First 5 dirs:", used_frame_dirs[:5])
+    print("Last 5 dirs: ", used_frame_dirs[-5:])
+
     # 결과 처리
     json_results = process_results(results, used_frame_dirs, keypoints_data)
     
@@ -284,4 +298,3 @@ def main(result_file, keypoints_pkl_file, output_json_file):
     
     # **리스트 형태** 그대로 반환
     return json_results
-

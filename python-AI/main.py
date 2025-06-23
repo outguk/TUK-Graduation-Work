@@ -25,6 +25,7 @@ import uuid
 from fastapi import BackgroundTasks
 from datetime import datetime
 from typing import Optional, AsyncGenerator
+from fastapi.encoders import jsonable_encoder
 
 from fastapi import (
     FastAPI,
@@ -334,7 +335,8 @@ async def upload_video(
     volume_score = evaluate_volume(volume_analysis)
 
     # 5) 비언어 분석
-    nonverbal_analysis = video_nonverbal_analysis(os.path.abspath(file_path))
+    nonverbal = video_nonverbal_analysis(os.path.abspath(file_path))
+    clean_nonverbal = jsonable_encoder(nonverbal if isinstance(nonverbal, list) else [nonverbal])
 
     # 6) MongoDB 저장 (대본 분석은 별도 엔드포인트에서 넣음)
     document = {
@@ -344,7 +346,7 @@ async def upload_video(
         "speaking_evaluation": speed_score,
         "volume_analysis": volume_analysis,
         "volume_evaluation": volume_score,
-        "nonverbal_analysis": nonverbal_analysis,
+        "nonverbal_analysis": clean_nonverbal,
         "timestamp": datetime.utcnow().isoformat(),
     }
     result = await collection.insert_one(document)
@@ -461,10 +463,27 @@ async def get_analysis_by_user(user_id: int = Depends(get_current_user)):
     cursor = collection.find({"user_id": user_id})
     video_results = []
     async for doc in cursor:
+        # --- 여기에 변환 로직 시작 ---
+        raw = doc.get("nonverbal_analysis", [])
+        # 1) dict 형태({results: [...]}) → inner array
+        if isinstance(raw, dict) and "results" in raw:
+            arr = raw["results"]
+        # 2) 이미 리스트면 그대로
+        elif isinstance(raw, list):
+            arr = raw
+        # 3) 단일 객체 → 배열로 감싸기
+        else:
+            arr = [raw]
+        # 4) JSON 직렬화 가능한 타입으로
+        arr = jsonable_encoder(arr)
+        # 덮어쓰기
+        doc["nonverbal_analysis"] = arr
+        # --- 변환 로직 끝 ---
+
         doc["_id"] = str(doc["_id"])
         video_results.append(doc)
     
-    # 대본 분석 결과
+    # 대본 분석 결과 (필요하다면 동일하게 처리)
     script_cursor = script_collection.find({"user_id": user_id})
     script_results = []
     async for doc in script_cursor:
@@ -475,6 +494,7 @@ async def get_analysis_by_user(user_id: int = Depends(get_current_user)):
         "video_analyses": video_results,
         "script_analyses": script_results
     }
+
 
 
 # ─────────────────────────────────────────

@@ -111,7 +111,7 @@ def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=35.
                 "label": -1
             }
             annotations.append(annotation)
-            split_xsub_val.extend(frame_dirs)
+            split_xsub_val.append(frame_dirs[0])
         else:
             normal_behavior_frames.append(frame_dirs[0])
 
@@ -126,6 +126,12 @@ def json_to_pkl(video_filename, frames_per_annotation=10, movement_threshold=35.
         "split": {"xsub_val": split_xsub_val},
         "annotations": annotations
     }
+   # ── 전체 세그먼트 목록 추가 (정상 + 비정상) ──
+    all_segments = sorted(
+        split_xsub_val + normal_behavior_frames,
+        key=natural_key
+    )
+    converted_data["all_segments"] = all_segments
 
     with open(output_pkl_path, 'wb') as f:
         pickle.dump(converted_data, f)
