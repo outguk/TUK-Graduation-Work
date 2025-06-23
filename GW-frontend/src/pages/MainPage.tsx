@@ -11,7 +11,7 @@
  * - 로그아웃 버튼 (상단 우측)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -31,6 +31,13 @@ import {
   LogoutOutlined as LogoutIcon
 } from '@mui/icons-material';
 import { useNavigate } from "react-router-dom";
+import axios from 'axios';
+
+// PNG 이미지 import
+import presenupload2 from '../assets/presenupload2.png';
+import profile2 from '../assets/profile2.png';
+import latestanalyze from '../assets/latestanalyze.png';
+import script2 from '../assets/script2.png';
 
 export default function MainPage() {
   const navigate = useNavigate();
@@ -38,6 +45,28 @@ export default function MainPage() {
   // 카드 호버 상태 관리
   // hoveredCard: 현재 마우스가 올라간 카드의 인덱스를 저장 (null: 호버된 카드 없음)
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [username, setUsername] = useState<string>('사용자');
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await axios.get('/spring/api/user/profile', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (response.data && response.data.name) {
+            setUsername(response.data.name);
+          }
+        } catch (error) {
+          console.error('사용자 프로필을 가져오는 데 실패했습니다:', error);
+          // 토큰이 유효하지 않은 경우 로그인 페이지로 리디렉션 할 수 있습니다.
+          // navigate('/login');
+        }
+      }
+    };
+    fetchUsername();
+  }, []);
 
   /**
    * 카드에 마우스를 올렸을 때 호출되는 함수
@@ -104,25 +133,29 @@ export default function MainPage() {
       title: "발표 영상 분석",
       description: "발표 영상 분석을 통한 발표 피드백",
       link: "/upload",
-      icon: VideoIcon
+      icon: VideoIcon,
+      image: presenupload2
     },
     {
       title: "내 정보",
       description: "내 정보 수정",
       link: "/profile",
-      icon: PersonIcon
+      icon: PersonIcon,
+      image: profile2
     },
     {
       title: "지난 발표 분석",
       description: "지금까지 분석한 발표들",
       link: "/analysis",
-      icon: HistoryIcon
+      icon: HistoryIcon,
+      image: latestanalyze
     },
     {
       title: "대본 분석",
       description: "대본 텍스트 분석을 통한 피드백",
       link: "/analysis/script-upload",
-      icon: GuideIcon
+      icon: GuideIcon,
+      image: script2
     }
   ];
   
@@ -163,39 +196,9 @@ export default function MainPage() {
         position: "relative"
       }}
     >
-      {/* 로그아웃 버튼 - 우측 상단에 배치 */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: { xs: 16, md: 24 },
-          right: { xs: 16, md: 32 }
-        }}
-      >
-        <Button
-          variant="outlined"
-          startIcon={<LogoutIcon />}
-          onClick={handleLogout}
-          sx={{
-            borderRadius: 8,
-            px: 2,
-            py: 1,
-            borderColor: '#000',
-            color: '#000',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              borderColor: '#000',
-              backgroundColor: alpha('#000', 0.04),
-              transform: 'translateY(-2px)'
-            }
-          }}
-        >
-          로그아웃
-        </Button>
-      </Box>
-
       <Container maxWidth="xl" sx={{ my: 4 }}>
         {/* 상단 타이틀 및 사용자 인사말 */}
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: 4, position: 'relative' }}>
           <Typography 
             variant="h3" 
             component="h1"
@@ -222,8 +225,39 @@ export default function MainPage() {
               mb: 3
             }}
           >
-            안녕하세요! (사용자)
+            안녕하세요! {username}
           </Typography>
+
+          {/* 로그아웃 버튼 - "안녕하세요!" 텍스트와 같은 높이에 배치 */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 'auto',
+              bottom: 0,
+              right: 0
+            }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<LogoutIcon />}
+              onClick={handleLogout}
+              sx={{
+                borderRadius: 8,
+                px: 2,
+                py: 1,
+                borderColor: '#000',
+                color: '#000',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: '#000',
+                  backgroundColor: alpha('#000', 0.04),
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              로그아웃
+            </Button>
+          </Box>
         </Box>
 
         {/* 서비스 카드 그리드 레이아웃 */}
@@ -306,7 +340,8 @@ export default function MainPage() {
                         display: 'flex',
                         justifyContent: 'flex-start',
                         alignItems: 'flex-start',
-                        mb: 3
+                        mb: 3,
+                        zIndex: 2 // 이미지가 텍스트 뒤에 오도록 zIndex 설정
                       }}
                     >
                       <Box
@@ -336,7 +371,8 @@ export default function MainPage() {
                         alignItems: 'flex-start',
                         mt: 'auto', // 아래쪽으로 밀어내기
                         transform: hoveredCard === index ? 'translateY(-20px)' : 'translateY(0)',
-                        transition: 'transform 0.3s ease'
+                        transition: 'transform 0.3s ease',
+                        zIndex: 2 // 이미지가 텍스트 뒤에 오도록 zIndex 설정
                       }}
                     >
                       {/* 카드 제목 */}
@@ -358,6 +394,37 @@ export default function MainPage() {
                         {card.description}
                       </Typography>
                     </Box>
+
+                    {/* 카드 우측 이미지 */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 0,
+                        width: '60%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        zIndex: 1
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={card.image}
+                        alt={`${card.title} illustration`}
+                        sx={{
+                          width: '100%',
+                          height: 'auto',
+                          maxHeight: '80%',
+                          objectFit: 'contain',
+                          opacity: hoveredCard === index ? 0.4 : 0.2,
+                          transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out',
+                          transform: `translateX(${hoveredCard === index ? '0%' : '10%'})`,
+                        }}
+                      />
+                    </Box>
                     
                     {/* 바로가기 버튼 (호버 시에만 나타남) */}
                     <Box
@@ -372,7 +439,8 @@ export default function MainPage() {
                         pl: { xs: 3, sm: 4, md: 5 },
                         opacity: hoveredCard === index ? 1 : 0,
                         transform: hoveredCard === index ? 'translateY(0)' : 'translateY(20px)',
-                        transition: 'all 0.3s ease'
+                        transition: 'all 0.3s ease',
+                        zIndex: 2 // 이미지가 텍스트 뒤에 오도록 zIndex 설정
                       }}
                     >
                       <Typography 

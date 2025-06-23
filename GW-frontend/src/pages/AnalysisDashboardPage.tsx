@@ -42,6 +42,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   GraphicEq as GraphicEqIcon,
   PersonOutline as PersonOutlineIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import {PlayCircleOutline} from "@mui/icons-material";
 import axios from 'axios';
@@ -438,26 +439,47 @@ const AnalysisDashboardPage: React.FC = () => {
       >
         <Container maxWidth="xl">
           {/* Header section */}
-          <Box sx={{ mb: 5 }}>
-            <Typography 
-              variant="h4" 
-              component="h1"
-              fontWeight={700}
-              sx={{ 
-                mb: 1,
-                position: 'relative',
-                display: 'inline-block'
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 5 }}>
+            <Box>
+              <Typography 
+                variant="h4" 
+                component="h1"
+                fontWeight={700}
+                sx={{ 
+                  mb: 1,
+                  position: 'relative',
+                  display: 'inline-block'
+                }}
+              >
+                {currentPresentationTitle}
+              </Typography>
+              <Typography 
+                variant="body1" 
+                color="text.secondary"
+                sx={{ mt: 3 }}
+              >
+                {selectedType === 'video' ? '영상 분석이 완료되었습니다!' : '대본 분석이 완료되었습니다!'} 결과를 확인해 보세요
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/main')}
+              sx={{
+                borderRadius: 8,
+                px: 3,
+                py: 1,
+                borderColor: '#000',
+                color: '#000',
+                '&:hover': {
+                  borderColor: '#333',
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                }
               }}
+              aria-label="메인으로 돌아가기"
             >
-              {currentPresentationTitle}
-            </Typography>
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-              sx={{ mt: 3 }}
-            >
-              {selectedType === 'video' ? '영상 분석이 완료되었습니다!' : '대본 분석이 완료되었습니다!'} 결과를 확인해 보세요
-            </Typography>
+              메인으로 돌아가기
+            </Button>
           </Box>
           
           <Fade in={showContent} timeout={1000}>
@@ -485,10 +507,9 @@ const AnalysisDashboardPage: React.FC = () => {
                     업로드 페이지로 이동
                   </Button>
                 </Box>
-              ) :  selectedType === 'script' ? (
-                // 대본 분석 페이지로 리다이렉트
+              ) : selectedType === 'script' ? (
                 <ScriptPage scriptId={selectedPresentationId ?? ''} />
-              ) :(
+              ) : (
                 <Grid container spacing={4}>
                   {/* Left column: Summary + Tips */}
                   <Grid item xs={12} md={3}>

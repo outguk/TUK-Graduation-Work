@@ -7,10 +7,23 @@ from __future__ import annotations
 import os
 import re
 from collections import Counter
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, TypedDict
 
 from konlpy.tag import Okt, Kkma
 from korcen import korcen
+
+class ScriptAnalysisStats(TypedDict):
+    uncertainty_count: int
+    non_honorific_count: int
+    subject_verb_mismatch_count: int
+    profanity_count: int
+    uncertainty_examples: List[Tuple[int, str]]
+    non_honorific_examples: List[Tuple[int, str]]
+    subject_verb_examples: List[Tuple[int, str]]
+    profanity_examples: List[Tuple[int, str]]
+    otas_detected: List[Tuple[int, str, int, str]]
+    word_repeat_counter: Counter[str]
+    all_words: List[str]
 
 # ─────────────────────────────────────────────
 # 1. 유틸 함수
@@ -74,7 +87,7 @@ def analyze_script(
     tagger: Okt,
     kkma: Kkma,
     custom_badwords: set[str],
-) -> Dict[str, Any]:
+) -> ScriptAnalysisStats:
     informal_tags = {"EFN", "EF", "EFI", "EFQ"}
     formal_exceptions = {"ㅂ니다", "습니다", "입니다", "하겠습니다", "ㅂ니까"}
     ignore_set = {
@@ -108,19 +121,19 @@ def analyze_script(
         "를",
     }
 
-    stats = dict(
-        uncertainty_count=0,
-        non_honorific_count=0,
-        subject_verb_mismatch_count=0,
-        profanity_count=0,
-        uncertainty_examples=[],
-        non_honorific_examples=[],
-        subject_verb_examples=[],
-        profanity_examples=[],
-        otas_detected=[],
-        word_repeat_counter=Counter(),
-        all_words=[],
-    )
+    stats: ScriptAnalysisStats = {
+        "uncertainty_count": 0,
+        "non_honorific_count": 0,
+        "subject_verb_mismatch_count": 0,
+        "profanity_count": 0,
+        "uncertainty_examples": [],
+        "non_honorific_examples": [],
+        "subject_verb_examples": [],
+        "profanity_examples": [],
+        "otas_detected": [],
+        "word_repeat_counter": Counter(),
+        "all_words": [],
+    }
 
     for idx, sentence in enumerate(sentences):
         kkma_pos = kkma.pos(sentence)

@@ -1,0 +1,1 @@
+import{j as o}from"./index.Cl1ZUpOp.js";import{c as r}from"./Container.BTJqmrib.js";const s=r([o.jsx("path",{d:"m12 2-5.5 9h11z"},"0"),o.jsx("circle",{cx:"17.5",cy:"17.5",r:"4.5"},"1"),o.jsx("path",{d:"M3 13.5h8v8H3z"},"2")],"Category");export{s as C};

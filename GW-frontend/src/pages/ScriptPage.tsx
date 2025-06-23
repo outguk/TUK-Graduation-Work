@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Box, 
@@ -13,8 +13,12 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  Chip
+  Badge
 } from '@mui/material';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 
 interface ScriptAnalysis {
   length: number;
@@ -43,14 +47,37 @@ interface ScriptData {
   timestamp: string;
 }
 
+interface HighlightInfo {
+  indices: Set<number>;
+  color: string;
+  type: string;
+}
+
 interface ScriptPageProps {
   scriptId: string;
 }
+
+const HIGHLIGHT_COLORS: Record<string, string> = {
+  uncertainty: 'rgba(255, 204, 204, 0.7)', // Light Red
+  non_honorific: 'rgba(255, 236, 179, 0.7)', // Light Yellow
+  subject_verb: 'rgba(209, 196, 233, 0.7)', // Light Purple
+  profanity: 'rgba(255, 209, 128, 0.7)', // Light Orange
+};
+
+const ICONS: Record<string, JSX.Element> = {
+  uncertainty: <HelpOutlineIcon sx={{ color: '#e57373', mr: 1.5 }} />,
+  non_honorific: <ChatBubbleOutlineIcon sx={{ color: '#ffd54f', mr: 1.5 }} />,
+  subject_verb: <WarningAmberOutlinedIcon sx={{ color: '#9575cd', mr: 1.5 }} />,
+  profanity: <BlockOutlinedIcon sx={{ color: '#ffb74d', mr: 1.5 }} />,
+};
 
 const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeHighlightTypes, setActiveHighlightTypes] = useState<Set<string>>(new Set());
+  const [lastClickedType, setLastClickedType] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -94,10 +121,135 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
     }
   }, [scriptId]);
 
+  const handleAnalysisTypeClick = (type: string) => {
+    setActiveHighlightTypes(prev => {
+      const newTypes = new Set(prev);
+      if (newTypes.has(type)) {
+        newTypes.delete(type);
+      } else {
+        newTypes.add(type);
+      }
+      return newTypes;
+    });
+    setLastClickedType(type);
+  };
+
+  const highlightData = useMemo<HighlightInfo[]>(() => {
+    if (!scriptData || activeHighlightTypes.size === 0) {
+      return [];
+    }
+
+    const analysisData = scriptData.script_analysis;
+    const highlights: HighlightInfo[] = [];
+    const uniqueActiveTypes = Array.from(activeHighlightTypes);
+    let typesToCheck: string[];
+
+    if (lastClickedType && activeHighlightTypes.has(lastClickedType)) {
+      typesToCheck = [
+        lastClickedType,
+        ...uniqueActiveTypes.filter(t => t !== lastClickedType),
+      ];
+    } else {
+      typesToCheck = uniqueActiveTypes;
+    }
+    
+    typesToCheck.forEach(type => {
+      switch (type) {
+        case 'uncertainty':
+          highlights.push({
+            type: 'uncertainty',
+            indices: new Set(analysisData.uncertainty_examples.map(ex => ex[0])),
+            color: HIGHLIGHT_COLORS.uncertainty
+          });
+          break;
+        case 'non_honorific':
+          highlights.push({
+            type: 'non_honorific',
+            indices: new Set(analysisData.non_honorific_examples.map(ex => ex[0])),
+            color: HIGHLIGHT_COLORS.non_honorific
+          });
+          break;
+        case 'subject_verb':
+          highlights.push({
+            type: 'subject_verb',
+            indices: new Set(analysisData.subject_verb_examples.map(ex => ex[0])),
+            color: HIGHLIGHT_COLORS.subject_verb
+          });
+          break;
+        case 'profanity':
+          highlights.push({
+            type: 'profanity',
+            indices: new Set(analysisData.profanity_examples.map(ex => ex[0])),
+            color: HIGHLIGHT_COLORS.profanity
+          });
+          break;
+      }
+    });
+    return highlights;
+  }, [scriptData, activeHighlightTypes, lastClickedType]);
+
+  const renderHighlightedScript = () => {
+    if (!scriptData) return null;
+
+    const sentences = scriptData.script_text.split(/(?<=[.?!])\s+/);
+    let restOfText = scriptData.script_text;
+    const renderedElements: (string | JSX.Element)[] = [];
+
+    sentences.forEach((sentence, index) => {
+      const sentenceNumber = index + 1;
+      const originalIndex = restOfText.indexOf(sentence);
+      
+      if (originalIndex === -1) {
+        if(restOfText.length > 0){
+          renderedElements.push(restOfText);
+          restOfText = "";
+        }
+        return;
+      }
+
+      const precedingText = restOfText.substring(0, originalIndex);
+      if (precedingText) {
+        renderedElements.push(precedingText);
+      }
+
+      let backgroundColor = 'transparent';
+      const matchingHighlight = highlightData.find(highlight => highlight.indices.has(sentenceNumber));
+      if (matchingHighlight) {
+        backgroundColor = matchingHighlight.color;
+      }
+
+      renderedElements.push(
+        <Box
+          component="span"
+          key={index}
+          sx={{
+            backgroundColor,
+            transition: 'background-color 0.3s',
+            display: 'inline',
+            padding: '2px 0',
+            margin: '1px 0',
+            borderRadius: '3px',
+          }}
+        >
+          {sentence}
+        </Box>
+      );
+      
+      restOfText = restOfText.substring(originalIndex + sentence.length);
+    });
+
+    if (restOfText) {
+      renderedElements.push(restOfText);
+    }
+
+    return renderedElements;
+  };
+
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 10 }}>
         <CircularProgress />
+        <Typography sx={{ ml: 2 }}>분석 결과를 불러오는 중입니다...</Typography>
       </Box>
     );
   }
@@ -113,281 +265,226 @@ const ScriptPage: React.FC<ScriptPageProps> = ({ scriptId }) => {
   if (!scriptData || !scriptData.script_analysis) {
     return (
       <Alert severity="warning" sx={{ m: 3 }}>
-        분석 데이터를 불러올 수 없습니다
+        분석 데이터를 불러올 수 없습니다.
       </Alert>
     );
   }
 
   const analysis = scriptData.script_analysis;
 
+  const analysisItems = [
+    { type: 'uncertainty', label: '추측 표현', count: analysis.uncertainty_count, description: '단정적이지 않고 추측하는 듯한 뉘앙스를 주는 표현입니다.' },
+    { type: 'non_honorific', label: '비격식 종결 어미', count: analysis.non_honorific_count, description: '공식적인 발표에 어울리지 않는 비격식적인 문장 종결 형식입니다.' },
+    { type: 'subject_verb', label: '주어-서술어 호응', count: analysis.subject_verb_mismatch_count, description: '문장의 주어와 서술어의 관계가 문법적으로 자연스럽지 않은 경우입니다.' },
+    { type: 'profanity', label: '비속어', count: analysis.profanity_count, description: '발표의 신뢰도를 떨어뜨릴 수 있는 비속어나 부적절한 단어입니다.' },
+  ];
+
+  const problemItems = analysisItems.filter(item => item.count > 0);
+  
+  const cardHoverStyle = (cardId: string) => ({
+    boxShadow: hoveredCard === cardId
+      ? '0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12)'
+      : '0 4px 8px rgba(0,0,0,0.08)',
+    transform: hoveredCard === cardId ? 'translateY(-4px)' : 'none',
+    transition: 'all 0.3s ease-in-out',
+    position: 'relative',
+    overflow: 'hidden',
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '4px',
+      background: '#000',
+      opacity: hoveredCard === cardId ? 1 : 0,
+      transition: 'opacity 0.3s ease'
+    }
+  });
+
   return (
-    <Box sx={{ padding: 3 }}>
-      {/* 헤더 정보 */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h4" gutterBottom fontWeight="bold">
-          대본 분석 결과
+    <Grid container spacing={3}>
+      {/* Left Column */}
+      <Grid item xs={12} md={5}>
+        <Card
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            ...cardHoverStyle('summary')
+          }}
+          onMouseEnter={() => setHoveredCard('summary')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              대본 요약 및 분량 분석
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+    <Grid container spacing={2}>
+              <Grid item xs={6}>
+        <Typography variant="body2" color="text.secondary">파일명</Typography>
+                  <Typography variant="subtitle1" fontWeight="medium">{scriptData.filename}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">발표 시간</Typography>
+                  <Typography variant="subtitle1" fontWeight="medium">{scriptData.speech_minutes}분</Typography>
+          </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">총 글자수</Typography>
+                  <Typography variant="subtitle1" fontWeight="medium">{analysis.length}자</Typography>
+          </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">분석일</Typography>
+                  <Typography variant="subtitle1" fontWeight="medium">
+          {new Date(scriptData.timestamp).toLocaleDateString('ko-KR')}
         </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">파일명</Typography>
-            <Typography variant="h6">{scriptData.filename}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">발표 예정 시간</Typography>
-            <Typography variant="h6">{scriptData.speech_minutes}분</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">분석 일시</Typography>
-            <Typography variant="h6">
-              {new Date(scriptData.timestamp).toLocaleDateString('ko-KR')}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">총 글자수</Typography>
-            <Typography variant="h6">{analysis.length}자</Typography>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* 글자수 분석 */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            📝 글자수 분석
-          </Typography>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body1">
-              <strong>현재 글자수:</strong> {analysis.length}자
-            </Typography>
-            <Typography variant="body1">
-              <strong>권장 범위:</strong> {analysis.min_length}자 ~ {analysis.max_length}자
-            </Typography>
-          </Box>
-          <Alert 
-            severity={
-              analysis.length >= analysis.min_length && analysis.length <= analysis.max_length 
-                ? "success" 
-                : "warning"
-            }
-          >
-            {analysis.length_feedback}
-          </Alert>
-        </CardContent>
-      </Card>
-
-      {/* 문제점 요약 */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            🔍 문제점 요약
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="error">
-                  {analysis.uncertainty_count}
-                </Typography>
-                <Typography variant="body2">불확실 표현</Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="warning.main">
-                  {analysis.non_honorific_count}
-                </Typography>
-                <Typography variant="body2">비격식 표현</Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="error">
-                  {analysis.subject_verb_mismatch_count}
-                </Typography>
-                <Typography variant="body2">주어-서술어 불일치</Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="error">
-                  {analysis.profanity_count}
-                </Typography>
-                <Typography variant="body2">비속어</Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* 상세 분석 결과 */}
-      <Grid container spacing={3}>
-        {/* 불확실 표현 */}
-        {analysis.uncertainty_count > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="error">
-                  ❓ 불확실 표현 ({analysis.uncertainty_count}개)
-                </Typography>
-                <List dense>
-                  {analysis.uncertainty_examples.slice(0, 5).map(([pos, text], i) => (
-                    <ListItem key={i}>
-                      <ListItemText 
-                        primary={`${pos}번째 문장`}
-                        secondary={`"${text}"`}
-                      />
-                    </ListItem>
-                  ))}
-                  {analysis.uncertainty_examples.length > 5 && (
-                    <ListItem>
-                      <ListItemText 
-                        primary={`외 ${analysis.uncertainty_examples.length - 5}개 더...`}
-                      />
-                    </ListItem>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
-
-        {/* 비격식 표현 */}
-        {analysis.non_honorific_count > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="warning.main">
-                  💬 비격식 표현 ({analysis.non_honorific_count}개)
-                </Typography>
-                <List dense>
-                  {analysis.non_honorific_examples.slice(0, 5).map(([pos, text], i) => (
-                    <ListItem key={i}>
-                      <ListItemText 
-                        primary={`${pos}번째 문장`}
-                        secondary={`"${text}"`}
-                      />
-                    </ListItem>
-                  ))}
-                  {analysis.non_honorific_examples.length > 5 && (
-                    <ListItem>
-                      <ListItemText 
-                        primary={`외 ${analysis.non_honorific_examples.length - 5}개 더...`}
-                      />
-                    </ListItem>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
-
-        {/* 주어-서술어 불일치 */}
-        {analysis.subject_verb_mismatch_count > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="error">
-                  ⚠️ 주어-서술어 불일치 ({analysis.subject_verb_mismatch_count}개)
-                </Typography>
-                <List dense>
-                  {analysis.subject_verb_examples.slice(0, 5).map(([pos, text], i) => (
-                    <ListItem key={i}>
-                      <ListItemText 
-                        primary={`${pos}번째 문장`}
-                        secondary={`"${text}"`}
-                      />
-                    </ListItem>
-                  ))}
-                  {analysis.subject_verb_examples.length > 5 && (
-                    <ListItem>
-                      <ListItemText 
-                        primary={`외 ${analysis.subject_verb_examples.length - 5}개 더...`}
-                      />
-                    </ListItem>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
-
-        {/* 오타 감지 */}
-        {analysis.otas_detected.length > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="info.main">
-                  🔍 오타 감지 ({analysis.otas_detected.length}개)
-                </Typography>
-                <List dense>
-                  {analysis.otas_detected.slice(0, 5).map(([pos, char, charIdx, text], i) => (
-                    <ListItem key={i}>
-                      <ListItemText 
-                        primary={`${pos}번째 문장, ${charIdx}번째 문자`}
-                        secondary={`"${char}" in "${text}"`}
-                      />
-                    </ListItem>
-                  ))}
-                  {analysis.otas_detected.length > 5 && (
-                    <ListItem>
-                      <ListItemText 
-                        primary={`외 ${analysis.otas_detected.length - 5}개 더...`}
-                      />
-                    </ListItem>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
       </Grid>
+      </Grid>
+            <Box sx={{ mt: 3, mb: 1 }}>
+              <Alert
+                severity="info"
+                icon={false}
+                sx={{
+                  background: 'linear-gradient(90deg, #e3f2fd 0%, #fffde7 100%)',
+                  color: '#222',
+                  fontWeight: 'bold',
+                  fontSize: '1.1rem',
+                  borderRadius: 2,
+                  px: 2,
+                  py: 1.5,
+                  mb: 1,
+                }}
+              >
+                권장 글자수: <span style={{ color: '#1976d2', fontWeight: 700 }}>{analysis.min_length}자 ~ {analysis.max_length}자</span>
+              </Alert>
+      <Alert 
+                severity={analysis.length >= analysis.min_length && analysis.length <= analysis.max_length ? 'success' : 'warning'}
+                icon={false}
+                sx={{ mt: 1 }}
+      >
+        {analysis.length_feedback}
+      </Alert>
+            </Box>
+          </CardContent>
+        </Card>
 
-      {/* 단어 반복 빈도 */}
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            🔄 단어 반복 빈도 (2회 이상)
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {Object.entries(analysis.word_repeat_counter)
-              .filter(([_, count]) => count > 1)
-              .sort(([,a], [,b]) => b - a)
-              .slice(0, 20)
-              .map(([word, count], i) => (
-                <Chip 
-                  key={i} 
-                  label={`${word} (${count}회)`} 
-                  color={count > 3 ? "warning" : "default"}
-                  variant="outlined"
-                />
-              ))}
-          </Box>
-        </CardContent>
-      </Card>
+        <Divider sx={{ my: 2 }} />
 
-      {/* 대본 전문 */}
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            📄 대본 전문
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              whiteSpace: 'pre-wrap', 
-              lineHeight: 1.8,
-              backgroundColor: '#f5f5f5',
-              p: 2,
-              borderRadius: 1,
-              maxHeight: '400px',
-              overflow: 'auto'
-            }}
-          >
-            {scriptData.script_text}
-          </Typography>
-        </CardContent>
-      </Card>
-    </Box>
+        <Card
+           sx={{
+            borderRadius: 2,
+            ...cardHoverStyle('analysis')
+          }}
+          onMouseEnter={() => setHoveredCard('analysis')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              문장 유형별 분석
+              </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              각 항목을 클릭하면 우측 대본에서 해당 문장이 하이라이트됩니다.
+              </Typography>
+            <Divider sx={{ mb: 1 }} />
+            {problemItems.length > 0 ? (
+              <List component="nav" dense>
+                {problemItems.map(item => (
+                  <ListItem
+                    key={item.type}
+                    button
+                    onClick={() => handleAnalysisTypeClick(item.type)}
+                    sx={{
+                      my: 1,
+                      borderRadius: 2,
+                      backgroundColor: activeHighlightTypes.has(item.type) ? HIGHLIGHT_COLORS[item.type] : 'transparent',
+                      transition: 'background-color 0.3s, box-shadow 0.3s, transform 0.3s',
+                      boxShadow: activeHighlightTypes.has(item.type) ? 3 : 1,
+                      '&:hover': {
+                        boxShadow: 6,
+                        transform: 'translateY(-2px)',
+                        backgroundColor: activeHighlightTypes.has(item.type) ? HIGHLIGHT_COLORS[item.type] : 'action.hover',
+                      },
+                    }}
+                  >
+                    {ICONS[item.type]}
+                    <ListItemText 
+                      primary={item.label}
+                      primaryTypographyProps={{ fontWeight: activeHighlightTypes.has(item.type) ? 'bold' : 'normal' }}
+                      secondary={activeHighlightTypes.has(item.type) ? item.description : null}
+                    />
+                    <Badge badgeContent={item.count} color="error" />
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography color="text.secondary">
+                  검토된 문제점이 없습니다.
+              </Typography>
+              </Box>
+                )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+      {/* Right Column */}
+      <Grid item xs={12} md={7}>
+        <Card
+          sx={{
+            height: { md: 'calc(100vh - 200px)' },
+            display: 'flex',
+            flexDirection: 'column',
+            borderRadius: 2,
+            ...cardHoverStyle('script')
+          }}
+          onMouseEnter={() => setHoveredCard('script')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', p: { xs: 2, md: 3 } }}>
+            <Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                대본 전문
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, alignItems: 'center' }}>
+                <Typography variant="subtitle1" sx={{ mr: 1 }}>범례:</Typography>
+                {problemItems.map(item => (
+                    <Box key={item.type} sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: HIGHLIGHT_COLORS[item.type], mr: 0.5, border: '1px solid #ddd' }} />
+                        <Typography variant="caption">{item.label}</Typography>
+                    </Box>
+                ))}
+              </Box>
+            </Box>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                lineHeight: 1.9,
+                flexGrow: 1,
+                overflowY: 'auto',
+                backgroundColor: '#fff',
+                fontSize: '1rem',
+                borderRadius: 2,
+                '::-webkit-scrollbar': {
+                  width: '8px',
+                  background: '#f5f5f5',
+                  borderRadius: '4px',
+                },
+                '::-webkit-scrollbar-thumb': {
+                  background: '#e0e0e0',
+                  borderRadius: '4px',
+                },
+              }}
+            >
+              {renderHighlightedScript()}
+            </Paper>
+            </CardContent>
+          </Card>
+        </Grid>
+    </Grid>
   );
 };
 
