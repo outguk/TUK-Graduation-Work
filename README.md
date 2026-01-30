@@ -197,7 +197,11 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 
 <br>
 
-<img width="1455" height="827" alt="대본 분석 대시보드" src="https://github.com/user-attachments/assets/f2cbcca5-db79-42b3-b6d3-4ad74c79cb73" />
+<p align="center">
+  <img width="1455" height="827" alt="대본 분석 대시보드" src="https://github.com/user-attachments/assets/f2cbcca5-db79-42b3-b6d3-4ad74c79cb73" />
+  <br><em>대본 분석 대시보드</em>
+</p>
+
 
 
 <hr>
