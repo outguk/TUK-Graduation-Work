@@ -173,7 +173,7 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 <!-- 2행 -->
 <p align="center">
   <img src="https://github.com/user-attachments/assets/7292f765-a826-4f84-adbe-751907338c5c" width="400" />
-  <img src="https://github.com/user-attachments/assets/134aa780-2f42-48e6-9fc8-5a3d7bf34600" width="400" />
+  <img src="https://github.com/user-attachments/assets/134aa780-2f42-48e6-9fc8-5a3d7bf34600" width="500" />
   <br><em>회원가입 / 로그인</em>
 </p>
 
@@ -192,7 +192,6 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 <p align="center">
   <img src="https://github.com/user-attachments/assets/ce0f07f2-03dc-4fad-a072-5c6dd68a013b" width="400" />
   <img src="https://github.com/user-attachments/assets/d187c08c-e8d5-48a4-b6c0-2a4c00d78d3f" width="400" />
-  
   <br><em>말하기 속도 분석 / 음량 분석</em>
 </p>
 
@@ -278,6 +277,7 @@ npm run dev
 ```
 
 > **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
+
 
 
 
