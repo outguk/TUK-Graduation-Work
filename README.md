@@ -1,4 +1,4 @@
-
+<img width="988" height="386" alt="image" src="https://github.com/user-attachments/assets/a4a1c569-beb3-4c54-afdf-f3c8e8ed399c" />
 <h1 align="center">$\bf{\large{\color{#6580DD} AI \ 기반 \ 발표 \ 분석 \ 및 \ 피드백 \ 시스템 }}$</h1>
 
 <p align="center">
@@ -73,7 +73,8 @@
 
 ### 시스템 아키텍처
 
-https://media.discordapp.net/attachments/1293557166455914589/1410878819723640885/11111111.PNG?ex=697cfd0b&is=697bab8b&hm=1824faa0e4183192b580f947ea11986f67f194abf4cd7ed86e050526dc16443a&=&format=webp&quality=lossless
+<img width="988" height="386" alt="image" src="https://github.com/user-attachments/assets/be1d46e5-d892-4d97-8834-b6a2e19d96ad" />
+
 
 본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
 Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
