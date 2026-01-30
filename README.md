@@ -72,7 +72,7 @@
 
 ### 시스템 아키텍처
 
-<img width="1526" height="826" alt="image" src="https://github.com/user-attachments/assets/f5b428b9-2998-4933-a176-e87621be615b" />
+<img width="783" height="302" alt="image" src="https://github.com/user-attachments/assets/97e4b402-1f90-4017-8439-51b02c701d3e" />
 
 본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
 Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
