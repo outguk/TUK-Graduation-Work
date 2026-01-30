@@ -1,3 +1,4 @@
+
 <h1 align="center">$\bf{\large{\color{#6580DD} AI \ 기반 \ 발표 \ 분석 \ 및 \ 피드백 \ 시스템 }}$</h1>
 
 <p align="center">
@@ -72,8 +73,6 @@
 
 ### 시스템 아키텍처
 
-<img width="783" height="302" alt="image" src="https://github.com/user-attachments/assets/97e4b402-1f90-4017-8439-51b02c701d3e" />
-
 본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
 Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
 FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을 담당합니다. <br>
@@ -88,6 +87,12 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 | **AI Server** | FastAPI + PyTorch | 5000 | 음성·비언어·대본 분석 엔진 |
 | **RDB** | AWS RDS MySQL | - | 사용자 계정 및 프로필 관리 |
 | **NoSQL** | MongoDB Atlas | - | 분석 결과 및 대본 피드백 저장 |
+
+<br>
+
+<p align="center">
+  <img src="./images/시스템 아키텍처.png" alt="시스템 아키텍처" width="800"/>
+</p>
 
 <br>
 
@@ -156,6 +161,71 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 | **NonverbalEvaluationDetailPage** | 제스처·자세 분석 상세 결과 |
 | **ScriptUpload** | 대본 업로드 및 텍스트 입력 분석 |
 | **UserProfilePage** | 사용자 프로필 관리 |
+
+<br>
+
+### 페이지 스크린샷
+
+<p align="center">
+  <img src="./images/초기 메인화면.png" alt="초기 메인화면" width="700"/>
+  <br><em>초기 메인화면</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/로그인.png" alt="로그인" width="700"/>
+  <br><em>로그인</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/회원가입.png" alt="회원가입" width="700"/>
+  <br><em>회원가입</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/발표영상업로드 페이지.png" alt="발표영상 업로드 페이지" width="700"/>
+  <br><em>발표영상 업로드 페이지</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/전체대시보드.png" alt="전체 대시보드" width="700"/>
+  <br><em>분석 결과 종합 대시보드</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/말하기속도 분석 대시보드.png" alt="말하기속도 분석 대시보드" width="700"/>
+  <br><em>말하기 속도 분석 대시보드</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/음량 분석 대시보드.png" alt="음량 분석 대시보드" width="700"/>
+  <br><em>음량 분석 대시보드</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/비언어분석 대시보드.png" alt="비언어 분석 대시보드" width="700"/>
+  <br><em>비언어 분석 대시보드</em>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./images/대본 분석 대시보드.png" alt="대본 분석 대시보드" width="700"/>
+  <br><em>대본 분석 대시보드</em>
+</p>
 
 <hr>
 
@@ -228,7 +298,4 @@ npm run dev
 ```
 
 > **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
-
-
-
 
