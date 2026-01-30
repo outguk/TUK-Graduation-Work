@@ -1,4 +1,3 @@
-<img width="988" height="386" alt="image" src="https://github.com/user-attachments/assets/a4a1c569-beb3-4c54-afdf-f3c8e8ed399c" />
 <h1 align="center">$\bf{\large{\color{#6580DD} AI \ 기반 \ 발표 \ 분석 \ 및 \ 피드백 \ 시스템 }}$</h1>
 
 <p align="center">
@@ -73,8 +72,7 @@
 
 ### 시스템 아키텍처
 
-<img width="988" height="386" alt="image" src="https://github.com/user-attachments/assets/be1d46e5-d892-4d97-8834-b6a2e19d96ad" />
-
+<img width="1526" height="826" alt="image" src="https://github.com/user-attachments/assets/f5b428b9-2998-4933-a176-e87621be615b" />
 
 본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
 Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
@@ -230,6 +228,7 @@ npm run dev
 ```
 
 > **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
+
 
 
 
