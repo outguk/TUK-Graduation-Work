@@ -1,26 +1,230 @@
-**수정 사항**
 
-- 현재 기존 nonvarbel 폴더의 main.py 코드를 nonvarbal_analysis.py로 옮긴 후 함수로 만들어 python-AI의 main.py에서 import하여 사용해 비언어 분석을 수행하도록 수정되어있음
-- 또 python-Ai의 main.py에서 비디오 분석 실행 부분에서 nonverbel_analysis_result로 비언어 분석 함수를 불러와 분석 결과값을 받도록 하고 이를 발성 분석과 같이 반환하여 백엔드 서버로 보내주는 구조
+<h1 align="center">$\bf{\large{\color{#6580DD} AI \ 기반 \ 발표 \ 분석 \ 및 \ 피드백 \ 시스템 }}$</h1>
 
-**통합 버전2 사용 방법**
+<p align="center">
+영상·음성·대본을 종합 분석하여 발표 역량 향상을 돕는 멀티모달 AI 플랫폼
+</p>
 
-**1.** GW_backend/src/main/java/TUK-Graduation-Work/GW-backend의 BackendApplication.java를 실행하면 톰캣 서버가 생성됨(bulid.gradle의 java 버전을 본인 컴퓨터 java 버전에 맞춰주어야 함 17 or 23)
+---
 
-**2.** python-AI 디렉토리로 이동 해 main.py를 실행(명령어 -> **uvicorn main:app --host 0.0.0.0 --port 5000**)
+## 개발 환경
 
-**3.** 이후 localhost:8080에 접속, 업로드만 테스트 시 바로 localhost:8080/upload로 들어가면 됨
+### Language
+![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)
 
-- intellij 에서 BackendApplication.java를 실행하고 VSC에서 main.py를 실행하는 방식으로 진행함. VSC에서 동시에 되는 지는 해보지 않음
+### Framework & Runtime
+![Spring](https://img.shields.io/badge/spring-%236DB33F.svg?style=for-the-badge&logo=spring&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
 
-- 통합 시 중요한 것은 python-AI의 main.py함수에서 @app.post("/upload-video/") 부분을 보면 웹에서 업로드된 영상을 file_path 경로에 저장하고 있으며 비디오 분석 실행 부분에서 이 경로(file_path)를 기준으로 분석을 실행하도록 해야 함.
-- 분석 시 생성되는 영상의 프레임, 키포인트나 visuailization의 경로는 굳이 바꿀 필요 없을듯
+### Database
+![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
 
+### AI / ML
+![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)
+![OpenAI](https://img.shields.io/badge/Whisper-412991?style=for-the-badge&logo=openai&logoColor=white)
 
-- mongodb + aws rds
-- pip install motor
-- pip install sqlalchemy pymysql python-dotenv
+### Infra
+![AWS](https://img.shields.io/badge/AWS_RDS-%23FF9900.svg?style=for-the-badge&logo=amazonaws&logoColor=white)
+![MongoDB Atlas](https://img.shields.io/badge/MongoDB_Atlas-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
 
+<hr>
 
+## Key Dependencies and Features
 
+### 1. 멀티모달 발표 분석 파이프라인
+- 발표 영상을 업로드하면 **음성 분석**, **비언어 분석**, **대본 분석**을 자동 수행
+- 7단계 비동기 파이프라인으로 구성되어 실시간 진행률 추적 가능
+- UUID 기반 태스크 관리로 동시 다수 분석 요청 처리
+
+### 2. 음성 분석 (Vocalization Analysis)
+- OpenAI Whisper 기반 음성-텍스트 변환 (STT)
+- 발화 속도(WPM) 구간별 측정 및 평가
+- 음량·음성 크기 분석을 통한 전달력 평가
+
+### 3. 비언어 분석 (Non-Verbal Analysis)
+- MMPose 기반 골격(Skeleton) 키포인트 추출
+- ST-GCN++ 그래프 합성곱 네트워크를 활용한 제스처·동작 인식
+- 프레임 단위 자세 분석 및 행동 분류
+
+### 4. 대본 분석 (Script Analysis)
+- KoNLPy·KorCen 기반 한국어 자연어 처리
+- 경어법 일관성, 격식체 사용 여부 검증
+- 불확실 표현 탐지 및 비속어 필터링
+- 문법·구조 평가를 통한 대본 품질 점수 산출
+
+### 5. 비동기 리액티브 아키텍처
+- Spring WebFlux 기반 논블로킹 I/O 처리
+- FastAPI + asyncio 기반 AI 분석 비동기 수행
+- ThreadPoolExecutor를 활용한 CPU 바운드 작업 병렬 처리
+
+### 6. JWT 기반 인증·인가
+- Spring Security + JWT 토큰 기반 사용자 인증
+- BCrypt 패스워드 해싱
+- 보호된 API 엔드포인트에 대한 토큰 검증
+
+<hr>
+
+## 아키텍처
+
+### 시스템 아키텍처
+
+본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
+Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
+FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을 담당합니다. <br>
+분석 결과는 MongoDB에, 사용자 정보는 AWS RDS MySQL에 분리 저장하여 데이터 독립성을 보장합니다.
+
+<br>
+
+| 서비스 | 기술 스택 | 포트 | 설명 |
+| --- | --- | --- | --- |
+| **Frontend** | React 19 + TypeScript + Vite | 5173 | 사용자 인터페이스, 분석 대시보드, 차트 시각화 |
+| **Backend** | Spring Boot 3.4 + WebFlux | 8080 | 인증·인가, API 라우팅, 정적 리소스 서빙 |
+| **AI Server** | FastAPI + PyTorch | 5000 | 음성·비언어·대본 분석 엔진 |
+| **RDB** | AWS RDS MySQL | - | 사용자 계정 및 프로필 관리 |
+| **NoSQL** | MongoDB Atlas | - | 분석 결과 및 대본 피드백 저장 |
+
+<br>
+
+### 분석 파이프라인 흐름
+
+```
+영상 업로드 → 오디오 추출 → 전처리(리샘플링, 노이즈 제거)
+    → Whisper STT 변환 → 발화 속도·음량 분석
+    → 프레임 추출 → 키포인트 검출 → ST-GCN++ 동작 인식
+    → 결과 통합 → MongoDB 저장 → 대시보드 시각화
+```
+
+<hr>
+
+## Component & API URI Collection
+
+### Upload & Analysis Component
+영상 업로드 및 AI 분석을 처리하는 컴포넌트
+
+| URI | Method | 설명 |
+| --- | --- | --- |
+| `/spring/api/upload` | POST | MP4 영상 업로드 및 분석 요청 |
+| `/spring/api/my-analyses` | GET | 사용자의 분석 결과 목록 조회 |
+| `/spring/api/get-analysis?filename=X` | GET | 특정 분석 결과 상세 조회 |
+| `/spring/api/video/{filename}` | GET | 분석 영상 스트리밍 |
+| `/fastapi/api/upload-video/` | POST | 영상 분석 파이프라인 실행 |
+| `/fastapi/api/progress/{task_id}` | GET | 분석 진행률 실시간 조회 |
+
+<br>
+
+### Script Analysis Component
+대본 분석을 담당하는 컴포넌트
+
+| URI | Method | 설명 |
+| --- | --- | --- |
+| `/spring/api/script-upload` | POST | TXT 대본 파일 업로드 및 분석 |
+| `/spring/api/analyze-text-script` | POST | 텍스트 입력 대본 분석 |
+| `/spring/api/get-script-analysis?script_id=X` | GET | 대본 분석 결과 조회 |
+| `/fastapi/api/analyze-script/` | POST | 대본 파일 분석 수행 |
+| `/fastapi/api/analyze-text-script/` | POST | 텍스트 대본 분석 수행 |
+
+<br>
+
+### User Component
+사용자 인증 및 프로필 관리를 담당하는 컴포넌트
+
+| URI | Method | 설명 |
+| --- | --- | --- |
+| `/spring/api/users/new` | POST | 회원가입 |
+| `/spring/api/users/login` | POST | 로그인 (JWT 토큰 발급) |
+| `/spring/api/user/profile` | GET | 사용자 프로필 조회 |
+| `/spring/api/user/profile` | PUT | 사용자 정보 수정 |
+
+<hr>
+
+## 프론트엔드 페이지 구성
+
+| 페이지 | 설명 |
+| --- | --- |
+| **HomePage** | 서비스 소개 랜딩 페이지 |
+| **SignIn / SignUp** | 로그인 및 회원가입 |
+| **MainPage** | 로그인 후 메인 대시보드 |
+| **UploadPage** | 영상 업로드 및 실시간 진행률 표시 |
+| **AnalysisDashboardPage** | 분석 결과 종합 대시보드 (Recharts 차트) |
+| **SpeechEvaluationDetailPage** | 발화 속도·음량 상세 분석 그래프 |
+| **NonverbalEvaluationDetailPage** | 제스처·자세 분석 상세 결과 |
+| **ScriptUpload** | 대본 업로드 및 텍스트 입력 분석 |
+| **UserProfilePage** | 사용자 프로필 관리 |
+
+<hr>
+
+## Database Schema
+
+### MySQL (AWS RDS) - 사용자 정보
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `id` | INT (PK) | 자동 증가 식별자 |
+| `username` | VARCHAR (UNIQUE) | 사용자명 |
+| `password` | VARCHAR | BCrypt 해싱된 비밀번호 |
+| `email` | VARCHAR (UNIQUE) | 이메일 주소 |
+| `created_at` | TIMESTAMP | 계정 생성 시각 |
+
+### MongoDB Atlas - 분석 결과
+
+**results 컬렉션**
+```json
+{
+  "user_id": 1,
+  "filename": "presentation.mp4",
+  "speaking_speed": { "wpm": 135, "segments": [...] },
+  "speaking_evaluation": 82.5,
+  "volume_analysis": { "avg_db": -20.3, "segments": [...] },
+  "volume_evaluation": 75.0,
+  "nonverbal_analysis": [ { "action": "gesture", "confidence": 0.92 } ],
+  "timestamp": "2025-01-15T10:30:00Z"
+}
+```
+
+**script_analysis 컬렉션**
+```json
+{
+  "user_id": 1,
+  "script_text": "발표 대본 내용...",
+  "script_analysis": { "formality_score": 88, "feedback": [...] },
+  "speech_minutes": 15,
+  "filename": "script.txt",
+  "timestamp": "2025-01-15T11:00:00Z"
+}
+```
+
+<hr>
+
+## 실행 방법
+
+### 1. Backend (Spring Boot)
+```bash
+cd GW-backend
+./gradlew build
+java -jar build/libs/GW-backend-0.0.1-SNAPSHOT.jar
+# → localhost:8080
+```
+
+### 2. AI Server (FastAPI)
+```bash
+cd python-AI
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 5000
+# → localhost:5000
+```
+
+### 3. Frontend (React + Vite)
+```bash
+cd GW-frontend
+npm install
+npm run dev
+# → localhost:5173
+```
+
+> **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
 
