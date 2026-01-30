@@ -73,7 +73,7 @@
 
 ### 시스템 아키텍처
 
-<img width="484" height="273" alt="image" src="https://github.com/user-attachments/assets/41cab3f5-b67b-4de5-9f6c-5699e285e3e4" />
+https://media.discordapp.net/attachments/1293557166455914589/1410878819723640885/11111111.PNG?ex=697cfd0b&is=697bab8b&hm=1824faa0e4183192b580f947ea11986f67f194abf4cd7ed86e050526dc16443a&=&format=webp&quality=lossless
 
 본 시스템은 **프론트엔드 → Spring Boot 백엔드 → FastAPI AI 서버**의 3-Tier 구조로 설계되어 있습니다. <br>
 Spring Boot 백엔드는 사용자 인증·인가 및 API 프록시 역할을 수행하며, <br>
@@ -229,5 +229,6 @@ npm run dev
 ```
 
 > **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
+
 
 
