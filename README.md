@@ -162,37 +162,58 @@ FastAPI AI 서버는 영상·음성·대본에 대한 딥러닝 기반 분석을
 
 ### 페이지 스크린샷
 
-<img width="688" height="472" alt="초기 메인화면" src="https://github.com/user-attachments/assets/82b28e82-8081-4d6c-b00e-b5347ca1e452" />
+
+<p align="center">
+  <img width="688" height="472" alt="초기 메인화면" src="https://github.com/user-attachments/assets/82b28e82-8081-4d6c-b00e-b5347ca1e452" />
+  <br><em>초기 메인화면</em>
+</p>
 
 
 <br>
 
-<img width="418" height="384" alt="로그인" src="https://github.com/user-attachments/assets/0b6decd5-7b78-48a5-b867-06a54d624ba5" /> <img width="317" height="384" alt="회원가입" src="https://github.com/user-attachments/assets/4762e5d0-d1da-412e-9e29-3cda2b6b48d6" />
+<img width="300" height="250" alt="로그인" src="https://github.com/user-attachments/assets/0b6decd5-7b78-48a5-b867-06a54d624ba5" /> <img width="300" height="250" alt="회원가입" src="https://github.com/user-attachments/assets/4762e5d0-d1da-412e-9e29-3cda2b6b48d6" />
+
+<br>
+
+
+<p align="center">
+  <img width="1225" height="861" alt="발표영상업로드 페이지" src="https://github.com/user-attachments/assets/82ed8828-04d8-4220-a9a1-bbf0aca83cd3" />
+  <br><em>발표영상 업로드 페이지</em>
+</p>
 
 
 <br>
 
-<img width="1225" height="861" alt="발표영상업로드 페이지" src="https://github.com/user-attachments/assets/82ed8828-04d8-4220-a9a1-bbf0aca83cd3" />
+<p align="center">
+  <img width="764" height="396" alt="전체대시보드" src="https://github.com/user-attachments/assets/b4117970-2c85-494a-807d-37857fd54c0d" />
+  <br><em>분석 결과 종합 대시보드</em>
+</p>
 
 
 <br>
 
-<img width="764" height="396" alt="전체대시보드" src="https://github.com/user-attachments/assets/b4117970-2c85-494a-807d-37857fd54c0d" />
+
+<p align="center">
+  <img width="1532" height="769" alt="말하기속도 분석 대시보드" src="https://github.com/user-attachments/assets/ce0f07f2-03dc-4fad-a072-5c6dd68a013b" />
+  <br><em>말하기 속도 분석 대시보드</em>
+</p>
 
 
 <br>
 
-<img width="1532" height="769" alt="말하기속도 분석 대시보드" src="https://github.com/user-attachments/assets/ce0f07f2-03dc-4fad-a072-5c6dd68a013b" />
+
+<p align="center">
+  <img width="1526" height="826" alt="음량 분석 대시보드" src="https://github.com/user-attachments/assets/d187c08c-e8d5-48a4-b6c0-2a4c00d78d3f" />
+  <br><em>음량 분석 대시보드</em>
+</p>
 
 
 <br>
 
-<img width="1526" height="826" alt="음량 분석 대시보드" src="https://github.com/user-attachments/assets/d187c08c-e8d5-48a4-b6c0-2a4c00d78d3f" />
-
-
-<br>
-
-<img width="1376" height="853" alt="비언어분석 대시보드" src="https://github.com/user-attachments/assets/f22a1ec7-b4b3-4673-892c-173e0dfbb093" />
+<p align="center">
+  <img width="1376" height="853" alt="비언어분석 대시보드" src="https://github.com/user-attachments/assets/f22a1ec7-b4b3-4673-892c-173e0dfbb093" />
+  <br><em>비언어 분석 대시보드</em>
+</p>
 
 
 <br>
@@ -275,6 +296,7 @@ npm run dev
 ```
 
 > **Note**: 프론트엔드 빌드 시 `npm run build`를 실행하면 빌드 결과물이 자동으로 `GW-backend/src/main/resources/static/`에 복사되어 Spring Boot에서 정적 리소스로 서빙됩니다.
+
 
 
 
